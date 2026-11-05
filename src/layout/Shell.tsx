@@ -9,6 +9,11 @@ import { useApp } from '../store/store';
 import { Avatar, Badge, Button, Menu, MenuItem } from '../components/ui';
 import { fmtRelative } from '../lib/format';
 import type { Role } from '../data/types';
+import { getMode, isLiveConfigured, setMode, supabase } from '../live/client';
+
+const LIVE_NAV = ['/', '/leads', '/calling', '/campaigns', '/conversations', '/qualified', '/history'];
+const isLive = getMode() === 'live';
+const visible = (list: NavDef[]) => (isLive ? list.filter((n) => LIVE_NAV.includes(n.to)) : list);
 
 interface NavDef { to: string; label: string; icon: React.ReactNode; count?: (s: ReturnType<typeof useApp>) => number | undefined; children?: { to: string; label: string }[] }
 const MAIN: NavDef[] = [
@@ -73,18 +78,18 @@ function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: { colla
       <div className="sidebar-scroll">
         <div className="nav-section">
           <div className="nav-section-title label">Operations</div>
-          {MAIN.map((n) => <NavItem key={n.to} n={n} collapsed={collapsed} onNavigate={close} />)}
+          {visible(MAIN).map((n) => <NavItem key={n.to} n={n} collapsed={collapsed} onNavigate={close} />)}
         </div>
         <div className="nav-section">
           <div className="nav-section-title label">Management</div>
-          {MGMT.map((n) => <NavItem key={n.to} n={n} collapsed={collapsed} onNavigate={close} />)}
+          {visible(MGMT).map((n) => <NavItem key={n.to} n={n} collapsed={collapsed} onNavigate={close} />)}
         </div>
       </div>
       <div className="sidebar-foot">
         {!collapsed && (
           <div className="inset-box sidebar-foot-text" style={{ marginBottom: 8, padding: 10 }}>
-            <div className="row small strong"><FlaskConical size={13} className="muted" />Demonstration mode</div>
-            <div className="xs muted mt-4">All calls are simulated. No real outbound calls are placed. {settings.callingPaused && <b className="orange">Calling paused.</b>}</div>
+            <div className="row small strong"><FlaskConical size={13} className="muted" />{isLive ? 'Live data' : 'Demonstration mode'}</div>
+            <div className="xs muted mt-4">{isLive ? 'Showing your organisation\'s real data.' : 'All calls are simulated. No real outbound calls are placed.'} {settings.callingPaused && <b className="orange">Calling paused.</b>}</div>
           </div>
         )}
         <button className="nav-item desktop-only" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
@@ -126,7 +131,7 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
   useEffect(() => { if (open) { setQ(''); setIdx(0); } }, [open]);
   const results = useMemo(() => {
     const s = q.trim().toLowerCase();
-    const pages = [...MAIN, ...MGMT].map((n) => ({ group: 'Pages', label: n.label, sub: '', to: n.to }));
+    const pages = visible([...MAIN, ...MGMT]).map((n) => ({ group: 'Pages', label: n.label, sub: '', to: n.to }));
     if (!s) return pages.slice(0, 9);
     const out: { group: string; label: string; sub: string; to: string }[] = [];
     out.push(...pages.filter((p) => p.label.toLowerCase().includes(s)));
@@ -219,12 +224,18 @@ function Topbar({ onMenu, onSearch }: { onMenu: () => void; onSearch: () => void
         {(close) => (<>
           <div style={{ padding: '8px 10px' }}><div className="strong">{app.me.name}</div><div className="small muted">{app.me.email}</div><div className="mt-8"><Badge tone="blue">{app.role}</Badge></div></div>
           <div className="menu-sep" />
-          <div className="menu-label label">View as role (RBAC demo)</div>
-          {ROLES.map((r) => <MenuItem key={r} onClick={() => { app.setRole(r); app.toast('Role switched', `Now viewing as ${r}. Permissions updated.`, 'info'); close(); }}>{r}{app.role === r && <Check size={14} style={{ marginLeft: 'auto' }} />}</MenuItem>)}
-          <div className="menu-sep" />
+          {!isLive && <>
+            <div className="menu-label label">View as role (RBAC demo)</div>
+            {ROLES.map((r) => <MenuItem key={r} onClick={() => { app.setRole(r); app.toast('Role switched', `Now viewing as ${r}. Permissions updated.`, 'info'); close(); }}>{r}{app.role === r && <Check size={14} style={{ marginLeft: 'auto' }} />}</MenuItem>)}
+            <div className="menu-sep" />
+          </>}
+          {isLiveConfigured() && <>
+            <MenuItem icon={<FlaskConical />} onClick={() => { setMode(isLive ? 'demo' : 'live'); window.location.hash = '#/'; window.location.reload(); }}>Switch to {isLive ? 'Demo data' : 'Live data'}</MenuItem>
+            <div className="menu-sep" />
+          </>}
           <MenuItem icon={<User />} onClick={() => { nav(`/team/${app.me.id}`); close(); }}>My profile</MenuItem>
           <MenuItem icon={<SettingsIcon />} onClick={() => { nav('/settings'); close(); }}>Account settings</MenuItem>
-          <MenuItem icon={<LogOut />} onClick={() => { try { sessionStorage.removeItem('vf-auth'); } catch { /* */ } nav('/login'); close(); }}>Sign out</MenuItem>
+          <MenuItem icon={<LogOut />} onClick={async () => { try { sessionStorage.removeItem('vf-auth'); } catch { /* */ } if (isLive) await supabase.auth.signOut(); nav('/login'); close(); }}>Sign out</MenuItem>
         </>)}
       </Menu>
     </header>

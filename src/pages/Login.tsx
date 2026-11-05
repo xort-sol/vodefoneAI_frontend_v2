@@ -4,23 +4,35 @@ import { ArrowRight, KeyRound, ShieldCheck, PhoneCall, BadgeCheck, FlaskConical 
 import { Button, Field, Badge } from '../components/ui';
 import { useApp } from '../store/store';
 import { DAY, NOW } from '../data/seed';
+import { getMode, signInLive } from '../live/client';
+import type { Role } from '../data/types';
 
 export default function Login() {
   const nav = useNavigate(); const loc = useLocation();
   const app = useApp();
+  const live = getMode() === 'live';
   const monthCalls = app.calls.filter((c) => NOW.getTime() - new Date(c.startedAt).getTime() < 30 * DAY).length;
-  const [email, setEmail] = useState('sarah.mitchell@vodafone-demo.co.uk');
-  const [pw, setPw] = useState('demo-password');
+  const [email, setEmail] = useState(live ? '' : 'sarah.mitchell@vodafone-demo.co.uk');
+  const [pw, setPw] = useState(live ? '' : 'demo-password');
   const [err, setErr] = useState<{ email?: string; pw?: string }>({});
   const [step, setStep] = useState<'creds' | 'mfa'>('creds');
   const [code, setCode] = useState('');
-  const submit = (e: React.FormEvent) => {
+  const [busy, setBusy] = useState(false);
+  const [liveErr, setLiveErr] = useState('');
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const n: typeof err = {};
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) n.email = 'Enter a valid work email address.';
     if (pw.length < 8) n.pw = 'Password must be at least 8 characters.';
     setErr(n);
-    if (!Object.keys(n).length) setStep('mfa');
+    if (Object.keys(n).length) return;
+    if (!live) { setStep('mfa'); return; }
+    setBusy(true); setLiveErr('');
+    const res = await signInLive(email, pw);
+    setBusy(false);
+    if ('error' in res) { setLiveErr(res.error); return; }
+    app.setRole(res.role as Role);
+    nav((loc.state as { from?: string } | null)?.from ?? '/', { replace: true });
   };
   const verify = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,9 +53,12 @@ export default function Login() {
           <form className="col gap-16 mt-24" onSubmit={submit} noValidate>
             <Field label="Work email" error={err.email}><input className={`input ${err.email ? 'invalid' : ''}`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" /></Field>
             <Field label="Password" error={err.pw}><input className={`input ${err.pw ? 'invalid' : ''}`} type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="current-password" /></Field>
-            <Button variant="primary" type="submit" className="mt-8" iconRight={<ArrowRight />} style={{ height: 38 }}>Continue</Button>
-            <div className="row" style={{ gap: 12 }}><div className="divider grow" /><span className="xs muted">OR</span><div className="divider grow" /></div>
-            <Button style={{ height: 38 }} icon={<KeyRound />} onClick={() => setStep('mfa')}>Continue with Vodafone SSO</Button>
+            {liveErr && <div className="banner warn" role="alert">{liveErr}</div>}
+            <Button variant="primary" type="submit" className="mt-8" iconRight={<ArrowRight />} style={{ height: 38 }} disabled={busy}>{live ? 'Sign in' : 'Continue'}</Button>
+            {!live && <>
+              <div className="row" style={{ gap: 12 }}><div className="divider grow" /><span className="xs muted">OR</span><div className="divider grow" /></div>
+              <Button style={{ height: 38 }} icon={<KeyRound />} onClick={() => setStep('mfa')}>Continue with Vodafone SSO</Button>
+            </>}
           </form>
         ) : (
           <form className="col gap-16 mt-24" onSubmit={verify} noValidate>

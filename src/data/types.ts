@@ -118,7 +118,8 @@ export interface Call {
   questions: string[];
   unanswered: string[];
   failureReason?: string;
-  simulated: true;
+  qualification?: { need: number; budget: number; timeline: number; authority: number }; // 0-25 each, real calls only
+  simulated: boolean;
 }
 
 export interface Product {

@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { getMode, supabase } from './live/client';
 import { AppProvider } from './store/store';
 import { ConfirmProvider } from './components/ui';
 import { Shell } from './layout/Shell';
@@ -29,8 +31,17 @@ import NotFound from './pages/NotFound';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const loc = useLocation();
+  const live = getMode() === 'live';
+  const [session, setSession] = useState<'loading' | 'in' | 'out'>(live ? 'loading' : 'out');
+  useEffect(() => {
+    if (!live) return;
+    supabase.auth.getSession().then(({ data }) => setSession(data.session ? 'in' : 'out'));
+    const { data } = supabase.auth.onAuthStateChange((_e, sess) => setSession(sess ? 'in' : 'out'));
+    return () => data.subscription.unsubscribe();
+  }, [live]);
   let authed = false;
-  try { authed = sessionStorage.getItem('vf-auth') === '1'; } catch { authed = true; }
+  if (live) { if (session === 'loading') return null; authed = session === 'in'; }
+  else { try { authed = sessionStorage.getItem('vf-auth') === '1'; } catch { authed = true; } }
   return authed ? children : <Navigate to="/login" state={{ from: loc.pathname }} replace />;
 }
 

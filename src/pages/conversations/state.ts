@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import type { Call } from '../../data/types';
 import type { Tone } from '../../components/ui';
+import { getMode } from '../../live/client';
 
 export interface Annotation {
   tags: string[];
@@ -52,16 +53,19 @@ export const QUAL_TONE: Record<QualStatus, Tone> = { Qualified: 'green', Warm: '
 /** Deterministic need / budget / timeline / authority split of the qualification score (each out of 25). */
 export function qualBreakdown(c: Call) {
   const keys = ['Need', 'Budget', 'Timeline', 'Authority'] as const;
+  const hint = (k: string, v: number) => HINTS[k][v >= 15 ? 0 : 1];
+  if (c.qualification) return keys.map((k) => { const v = c.qualification![k.toLowerCase() as 'need']; return { key: k, value: v, hint: hint(k, v) }; });
+  if (getMode() === 'live') return [];
   const w = keys.map((k) => 0.7 + hashFrac(c.id + k) * 0.6);
   const sw = w.reduce((a, b) => a + b, 0);
   let parts = w.map((x) => Math.min(25, Math.round((c.score * x) / sw)));
   const diff = c.score - parts.reduce((a, b) => a + b, 0);
   if (diff !== 0) { const i = parts.findIndex((p) => p + diff >= 0 && p + diff <= 25); if (i >= 0) parts = parts.map((p, j) => (j === i ? p + diff : p)); }
-  const hints: Record<string, [string, string]> = {
-    Need: ['Clear usage need identified', 'Weak or unconfirmed need'],
-    Budget: ['Price accepted / budget confirmed', 'Budget not confirmed'],
-    Timeline: ['Wants to move within 30 days', 'No timeline given'],
-    Authority: ['Account holder / decision maker', 'Needs approval from others'],
-  };
-  return keys.map((k, i) => ({ key: k, value: parts[i], hint: parts[i] >= 15 ? hints[k][0] : hints[k][1] }));
+  return keys.map((k, i) => ({ key: k, value: parts[i], hint: hint(k, parts[i]) }));
 }
+const HINTS: Record<string, [string, string]> = {
+  Need: ['Clear usage need identified', 'Weak or unconfirmed need'],
+  Budget: ['Price accepted / budget confirmed', 'Budget not confirmed'],
+  Timeline: ['Wants to move within 30 days', 'No timeline given'],
+  Authority: ['Account holder / decision maker', 'Needs approval from others'],
+};

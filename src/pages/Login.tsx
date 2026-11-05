@@ -23,7 +23,7 @@ export default function Login() {
     e.preventDefault();
     const n: typeof err = {};
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) n.email = 'Enter a valid work email address.';
-    if (pw.length < 8) n.pw = 'Password must be at least 8 characters.';
+    if (live ? !pw : pw.length < 8) n.pw = live ? 'Enter your password.' : 'Password must be at least 8 characters.';
     setErr(n);
     if (Object.keys(n).length) return;
     if (!live) { setStep('mfa'); return; }

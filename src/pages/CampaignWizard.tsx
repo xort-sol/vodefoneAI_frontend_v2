@@ -8,7 +8,7 @@ import { Avatar, Badge, Button, Card, Field, KV, PageHeader, Progress, SimBadge,
 import { fmtDate, fmtDur, fmtEUR, fmtInt, fmtPct } from '../lib/format';
 import { DAY, NOW, startOfDay } from '../data/seed';
 import type { Campaign, CustomerType, Lead } from '../data/types';
-import { DayChips, TIMEZONES, VOICEMAIL_POLICIES, daysRange, getCampaignExtras, setCampaignExtras, toMin, type CampaignExtras, ModulePage } from './campaigns/shared';
+import { createCampaign, DayChips, TIMEZONES, VOICEMAIL_POLICIES, daysRange, getCampaignExtras, setCampaignExtras, toMin, type CampaignExtras, ModulePage } from './campaigns/shared';
 
 const STEPS = ['Campaign information', 'Lead selection', 'AI agent', 'Product & offer', 'Qualification', 'Schedule & retry', 'Review & launch'] as const;
 const OBJECTIVES = ['Renewal / recontract', 'New acquisition', 'Upsell / cross-sell', 'Retention / win-back', 'Appointment setting'];
@@ -63,6 +63,7 @@ export default function CampaignWizard() {
       if (!form.includeAssigned && camp && ['Active', 'Scheduled', 'Paused'].includes(camp.status)) { assigned++; continue; }
       const e = app.eligibility(l);
       if (!e.ok) { compliance++; e.reasons.forEach((r) => reasons.set(r.replace(/\(.*\)/, '').replace(/“.*”/, '(closed)').trim(), (reasons.get(r.replace(/\(.*\)/, '').replace(/“.*”/, '(closed)').trim()) ?? 0) + 1)); continue; }
+      if (app.mode === 'live' && !l.callable) { compliance++; reasons.set('Held by sales or finished dialling', (reasons.get('Held by sales or finished dialling') ?? 0) + 1); continue; }
       eligible.push(l);
     }
     eligible.sort((a, b) => b.tenureMonths - a.tenureMonths);
@@ -183,7 +184,7 @@ export default function CampaignWizard() {
     const endISO = form.endDate ? new Date(fromYmd(form.endDate).getTime() + 9 * 3600000).toISOString() : new Date(Date.now() + 30 * DAY).toISOString();
     const segment = [form.types.length ? form.types.join(' / ') : 'All customer types', form.city, form.tags[0]].filter(Boolean).join(' · ');
     const pid = form.productId || (app.products.find((p) => p.approved)?.id ?? app.products[0].id);
-    const camp = await app.addCampaign({
+    const created = await createCampaign(app, {
       name: form.name.trim(), productId: pid, offerId: form.offerId || null, agentId: form.agentId || (app.agents.find((a) => a.status === 'Live')?.id ?? app.agents[0].id), status,
       startDate: startISO, endDate: endISO, totalLeads: match.selected.length, attempted: 0, connected: 0, warm: 0, qualified: 0, minutes: 0,
       costPerMinute: pid.startsWith('p-biz') ? 0.145 : 0.118, segment,
@@ -191,13 +192,18 @@ export default function CampaignWizard() {
       retry: { maxAttempts: form.maxAttempts, intervalHours: form.intervalHours }, concurrency: form.concurrency, dailyCap: form.dailyCap,
       qualification: { minScore: form.minScore, requireBudget: form.requireBudget, requireDecisionMaker: form.requireDecisionMaker, requireTimeline: form.requireTimeline },
       createdBy: form.owner, description: form.description.trim() || `${form.objective} campaign for ${segment.toLowerCase()}.`,
-    });
-    if (!camp) { setSubmitting(false); return; }
+    }, match.selected.map((l) => l.id));
+    if (!created) { setSubmitting(false); return; }
+    const { camp, ok } = created;
     setCampaignExtras(camp.id, {
       objective: form.objective, owner: form.owner, pitch: form.pitch, questions: form.questions.filter((q) => q.trim()), hotThreshold: form.hot, warmThreshold: form.warm, voicemail: form.voicemail,
       filters: describeFilters(form),
     });
-    if (match.selected.length) app.updateLeads(match.selected.map((l) => l.id), { campaignId: camp.id, status: 'Queued' });
+    if (!ok) { // the draft exists, so staying here and retrying would create a second one
+      app.toast('Campaign saved as a draft', 'Its leads or status could not be saved, so it will not call anyone yet.', 'error');
+      nav(`/campaigns/${camp.id}`);
+      return;
+    }
     const verb = status === 'Active' ? 'Launched campaign' : status === 'Scheduled' ? 'Scheduled campaign' : 'Saved campaign draft';
     app.audit(verb, camp.name, 'Campaign');
     app.toast(status === 'Active' ? 'Campaign launched' : status === 'Scheduled' ? 'Campaign scheduled' : 'Draft saved',

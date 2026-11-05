@@ -245,7 +245,7 @@ export function SimDialModal({ lead, onClose, onSale }: { lead: Lead | null; onC
   const blockers = app.eligibility(lead).reasons.filter((r) => r.includes('consent') || r.includes('suppression'));
   const close = () => { if (phase === 'connected' || phase === 'dialling') return; onClose(); };
   const save = () => {
-    app.updateLead(lead.id, { status: outcome === 'Sale agreed' ? lead.status : status });
+    if (outcome !== 'Sale agreed' && status !== lead.status) app.updateLead(lead.id, { status });
     app.addNote(lead.id, `Simulated rep call (${fmtDur(secs)}) — ${outcome}.${notes.trim() ? ` ${notes.trim()}` : ''}`);
     app.audit('Logged rep contact (simulated)', `${lead.name} (${lead.id}) · ${outcome}`, 'Data');
     app.toast('Contact logged', `${lead.name} · ${outcome} · ${fmtDur(secs)} (simulated)`);

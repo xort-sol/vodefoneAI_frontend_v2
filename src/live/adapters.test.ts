@@ -37,8 +37,18 @@ describe('toLeadStatus', () => {
 });
 
 describe('leadStatusPatch', () => {
-  it.each([['New', null], ['Queued', null], ['Converted', 'Converted'], ['Hot', 'Hot']] as const)('%s -> %s', (s, want) =>
+  it.each([['New', null], ['Converted', 'Converted'], ['Hot', 'Hot']] as const)('%s -> %s', (s, want) =>
     expect(leadStatusPatch(s)).toEqual({ sales_status: want }));
+  it('a queue action never touches sales_status', () => expect(leadStatusPatch('Queued')).toEqual({}));
+});
+
+describe('callable', () => {
+  const ready = { id: 1, status: 'new', sales_status: null, consent: true, archived: false, created_at: 'x' };
+  it.each(['new', 'retry', 'callback'])('dialler status %s can ring', (status) => expect(toLead({ ...ready, status }, []).callable).toBe(true));
+  it.each([
+    [{ sales_status: 'Hot' }], [{ consent: false }], [{ archived: true }], [{ status: 'interested' }], [{ status: 'exhausted' }],
+    [{ status: 'closed' }], [{ status: 'do_not_call' }], [{ status: 'dialling' }],
+  ])('%j cannot ring', (o) => expect(toLead({ ...ready, ...o }, []).callable).toBe(false));
 });
 
 describe('campaign status', () => {

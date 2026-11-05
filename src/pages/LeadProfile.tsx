@@ -70,7 +70,7 @@ export default function LeadProfile() {
     const c = app.campaignById.get(campId);
     if (!c) return;
     if (lead.dnc || suppressed || !lead.consent) { setBlocked(elig.reasons.length ? elig.reasons : ['No valid marketing consent']); return; }
-    app.updateLead(lead.id, { campaignId: campId, productInterest: c.productId, status: ['New', 'Unreachable', 'Contacted'].includes(lead.status) ? 'Queued' : lead.status });
+    app.updateLead(lead.id, { campaignId: campId, productInterest: c.productId, ...(['New', 'Unreachable', 'Contacted'].includes(lead.status) ? { status: 'Queued' as const } : {}) });
     app.audit('Assigned campaign', `${lead.name} → ${c.name}`, 'Campaign');
     app.toast('Added to campaign', `${lead.name} → ${c.name}`);
   };

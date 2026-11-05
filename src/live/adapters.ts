@@ -20,8 +20,9 @@ export function toLeadStatus(row: Row): LeadStatus {
   if (row.status === 'interested') return (row.score ?? 0) >= 85 ? 'Hot' : 'Warm';
   return LEAD_STATUS[row.status] ?? 'New';
 }
-export const leadStatusPatch = (status: LeadStatus): { sales_status: string | null } =>
-  ({ sales_status: status === 'New' || status === 'Queued' ? null : status });
+// Queueing never touches sales_status: clearing it would hand a lead a rep holds back to the dialler
+export const leadStatusPatch = (status: LeadStatus): { sales_status?: string | null } =>
+  (status === 'Queued' ? {} : { sales_status: status === 'New' ? null : status });
 
 export function toLead(row: Row, notes: Row[]): Lead {
   return {
@@ -36,6 +37,7 @@ export function toLead(row: Row, notes: Row[]): Lead {
     archived: !!row.archived,
     notes: notes.map((n) => ({ id: String(n.id), author: n.author, at: n.created_at, text: n.text })),
     aiSummary: row.ai_summary ?? '',
+    callable: !row.sales_status && !!row.consent && !row.archived && ['new', 'retry', 'callback'].includes(row.status),
   };
 }
 

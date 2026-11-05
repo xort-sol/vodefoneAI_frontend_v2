@@ -36,6 +36,7 @@ export interface Lead {
   archived?: boolean;
   notes: { id: string; author: string; at: string; text: string }[];
   aiSummary: string;
+  callable?: boolean; // Live only: the dialler would actually ring this lead
 }
 
 export interface Campaign {

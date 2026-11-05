@@ -15,6 +15,7 @@ import * as repo from '../live/repo';
 import { AppProvider, useApp } from './store';
 import { campaignStats } from '../live/adapters';
 import { dailySeries } from '../lib/metrics';
+import { createCampaign } from '../pages/campaigns/shared';
 import * as seed from '../data/seed';
 
 const r = vi.mocked(repo);
@@ -110,7 +111,7 @@ describe('live mode', () => {
     const { result } = await start();
     act(() => result.current.updateLead('1', { score: 99, lastCallAt: 'x', attempts: 3, dnc: true, phone: '1', source: 'CSV import', aiSummary: 'x', notes: [] }));
     expect(r.saveLead).not.toHaveBeenCalled();
-    act(() => result.current.updateLeads(['1', '2'], { assignedRepId: 'u2', campaignId: null, status: 'Queued', score: 1 }));
+    act(() => { void result.current.updateLeads(['1', '2'], { assignedRepId: 'u2', campaignId: null, status: 'New', score: 1 }); });
     expect(r.saveLeads).toHaveBeenCalledWith(['1', '2'], { assigned_to: 'u2', campaign_id: null, sales_status: null });
   });
 
@@ -171,7 +172,7 @@ describe('live mode', () => {
     let saved: Lead | null = null;
     await act(async () => { saved = await result.current.addLead(newLead); });
     expect(saved).toMatchObject({ id: '42', name: 'Real Lead' });
-    expect(r.insertLead.mock.calls[0][0]).toMatchObject({ name: 'Real Lead', sales_status: null, source: 'Web form', current_plan: 'Red' });
+    expect(r.insertLead.mock.calls[0][0]).toMatchObject({ name: 'Real Lead', source: 'Web form', current_plan: 'Red' });
     expect(result.current.leads[0].id).toBe('42');
 
     const { id: _c, ...newCamp } = { ...seed.campaigns[0], status: 'Active' as const, schedule: { days: ['Mon'], start: '09:30', end: '18:00', timezone: 'Europe/Dublin' } };
@@ -190,9 +191,69 @@ describe('live mode', () => {
     expect(result.current.toasts.slice(-1)[0]?.kind).toBe('error');
   });
 
+  it('a patch without status leaves sales_status alone, and queueing writes nothing', async () => {
+    const { result } = await start();
+    act(() => result.current.updateLead('1', { campaignId: '5', productInterest: 'p-1' }));
+    expect(r.saveLead).toHaveBeenCalledWith('1', { campaign_id: '5', product_ref: 'p-1' });
+    r.saveLead.mockClear();
+    act(() => { result.current.updateLead('1', { status: 'Queued' }); });
+    expect(r.saveLead).not.toHaveBeenCalled();
+  });
+
+  describe('createCampaign', () => {
+    const { id: _id, ...camp } = { ...seed.campaigns[0], status: 'Active' as const };
+    const order = () => [r.insertCampaign, r.saveLeads, r.saveCampaign].map((f) => f.mock.invocationCallOrder[0]);
+
+    it('inserts a draft, attaches the leads, then takes the chosen status', async () => {
+      const { result } = await start();
+      let out: Awaited<ReturnType<typeof createCampaign>> = null;
+      await act(async () => { out = await createCampaign(result.current, camp, ['1']); });
+      expect(out).toMatchObject({ ok: true, camp: { id: '9' } });
+      expect(r.insertCampaign.mock.calls[0][0]).toMatchObject({ status: 'draft' });
+      expect(r.saveLeads).toHaveBeenCalledWith(['1'], { campaign_id: '9' });
+      expect(r.saveCampaign).toHaveBeenCalledWith('9', { status: 'running' });
+      const [a, b, c] = order();
+      expect(a).toBeLessThan(b); expect(b).toBeLessThan(c);
+    });
+
+    it('a failed attach leaves it a draft and reports failure', async () => {
+      const { result } = await start();
+      r.saveLeads.mockRejectedValue(new Error('refused'));
+      let out: Awaited<ReturnType<typeof createCampaign>> = null;
+      await act(async () => { out = await createCampaign(result.current, camp, ['1']); });
+      expect(out).toMatchObject({ ok: false });
+      expect(r.saveCampaign).not.toHaveBeenCalled();
+      expect(result.current.toasts.slice(-1)[0]).toMatchObject({ kind: 'error', desc: 'refused' });
+    });
+
+    it('a failed status change reports failure', async () => {
+      const { result } = await start();
+      r.saveCampaign.mockRejectedValue(new Error('refused'));
+      let out: Awaited<ReturnType<typeof createCampaign>> = null;
+      await act(async () => { out = await createCampaign(result.current, camp, ['1']); });
+      expect(out).toMatchObject({ ok: false });
+    });
+
+    it('a draft takes no status write', async () => {
+      const { result } = await start();
+      await act(async () => { await createCampaign(result.current, { ...camp, status: 'Draft' }, ['1']); });
+      expect(r.saveCampaign).not.toHaveBeenCalled();
+    });
+
+    it('updateLeads reports success and failure', async () => {
+      const { result } = await start();
+      let ok: boolean | undefined;
+      await act(async () => { ok = await result.current.updateLeads(['1'], { archived: true }); });
+      expect(ok).toBe(true);
+      r.saveLeads.mockRejectedValue(new Error('x'));
+      await act(async () => { ok = await result.current.updateLeads(['1'], { archived: true }); });
+      expect(ok).toBe(false);
+    });
+  });
+
   it('updateCampaign maps status and drops computed fields', async () => {
     const { result } = await start();
-    act(() => result.current.updateCampaign('3', { status: 'Stopped', attempted: 5 }));
+    act(() => { void result.current.updateCampaign('3', { status: 'Stopped', attempted: 5 }); });
     expect(r.saveCampaign).toHaveBeenCalledWith('3', { status: 'done' });
   });
 
@@ -250,6 +311,17 @@ describe('demo mode', () => {
     expect(localStorage.getItem('vf-role')).toBe('Analyst');
     await tick(3000);
     for (const f of [r.loadMe, r.loadAll, r.onAuthChange, r.saveLead]) expect(f).not.toHaveBeenCalled();
+  });
+
+  it('createCampaign keeps the chosen status and queues the leads in one pass', async () => {
+    const { result } = await start();
+    const { id: _id, ...camp } = { ...seed.campaigns[0], status: 'Active' as const };
+    const target = result.current.leads[0].id;
+    let out: Awaited<ReturnType<typeof createCampaign>> = null;
+    await act(async () => { out = await createCampaign(result.current, camp, [target]); });
+    expect(out).toMatchObject({ ok: true, camp: { status: 'Active' } });
+    expect(result.current.leads[0]).toMatchObject({ campaignId: out!.camp.id, status: 'Queued' });
+    expect(r.saveCampaign).not.toHaveBeenCalled();
   });
 
   it('addLead still creates a local lead', async () => {

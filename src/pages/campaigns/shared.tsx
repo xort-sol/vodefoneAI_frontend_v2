@@ -42,6 +42,16 @@ export function callsCSV(calls: Call[], app: ReturnType<typeof useApp>) {
   })));
 }
 
+/** Live: the dialler marks a running campaign with no leads done, so it starts as a draft, gets its leads, then takes its status. */
+export async function createCampaign(app: ReturnType<typeof useApp>, c: Omit<Campaign, 'id'>, leadIds: string[]) {
+  const live = app.mode === 'live';
+  const camp = await app.addCampaign(live ? { ...c, status: 'Draft' } : c);
+  if (!camp) return null;
+  const attached = !leadIds.length || await app.updateLeads(leadIds, live ? { campaignId: camp.id } : { campaignId: camp.id, status: 'Queued' });
+  const ok = attached && (!live || c.status === 'Draft' || await app.updateCampaign(camp.id, { status: c.status }));
+  return { camp, ok };
+}
+
 /** Common campaign lifecycle actions with RBAC, confirmation, audit and toasts. */
 export function useCampaignActions() {
   const app = useApp(); const nav = useNavigate(); const confirm = useConfirm();

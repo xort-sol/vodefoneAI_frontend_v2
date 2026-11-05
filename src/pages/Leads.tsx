@@ -93,7 +93,7 @@ export default function Leads() {
     const c = app.campaignById.get(campId);
     if (!c) return;
     const eligible = ids.filter((id) => { const l = app.leadById.get(id); return l && !isSuppressed(l) && l.consent; });
-    eligible.forEach((id) => { const l = app.leadById.get(id); if (!l) return; app.updateLead(id, { campaignId: campId, productInterest: c.productId, status: ['New', 'Unreachable', 'Contacted'].includes(l.status) ? 'Queued' : l.status }); });
+    eligible.forEach((id) => { const l = app.leadById.get(id); if (!l) return; app.updateLead(id, { campaignId: campId, productInterest: c.productId, ...(['New', 'Unreachable', 'Contacted'].includes(l.status) ? { status: 'Queued' as const } : {}) }); });
     app.audit('Assigned campaign', `${eligible.length} lead(s) → ${c.name}`, 'Campaign');
     app.toast(`${eligible.length} lead${eligible.length === 1 ? '' : 's'} added to ${c.name}`, ids.length - eligible.length ? `${ids.length - eligible.length} skipped (no consent or suppressed)` : undefined);
   };
@@ -246,7 +246,7 @@ export default function Leads() {
                 <Button size="xs" type="submit" disabled={!tagDraft.trim()}>Add</Button>
               </form>
             </>), !canEdit)}
-            <button className="btn xs" onClick={() => retry(ids)} disabled={!canEdit} title="Re-queue leads that pass consent, suppression and attempt-limit checks"><RotateCcw size={13} />Retry eligible</button>
+            {!isLive && <button className="btn xs" onClick={() => retry(ids)} disabled={!canEdit} title="Re-queue leads that pass consent, suppression and attempt-limit checks"><RotateCcw size={13} />Retry eligible</button>}
             <button className="btn xs" onClick={() => suppress(ids, clear)} disabled={!canEdit}><ShieldOff size={13} />Suppress</button>
             <button className="btn xs" onClick={() => archive(ids, clear)} disabled={!canEdit}><Archive size={13} />Archive</button>
             {canDelete && !isLive && <button className="btn xs" onClick={() => remove(ids, clear)}><Trash2 size={13} />Delete</button>}

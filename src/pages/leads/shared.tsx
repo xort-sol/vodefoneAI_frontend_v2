@@ -135,9 +135,11 @@ export function LeadFormModal({ open, onClose, lead, onSaved }: { open: boolean;
   const suppressed = phoneNorm ? app.suppressions.some((s) => s.phone === phoneNorm) : false;
   const errors: Partial<Record<keyof LeadForm, string>> = {};
   if (f.name.trim().length < 2) errors.name = 'Enter the customer’s full name';
-  if (!f.phone.trim()) errors.phone = 'Phone number is required';
-  else if (!phoneNorm) errors.phone = 'Enter a valid Irish number, e.g. 087 123 4567 or +353 87 123 4567';
-  else if (dup) errors.phone = `Duplicate — already on ${dup.name} (${dup.id})`;
+  if (!lockedLive) {
+    if (!f.phone.trim()) errors.phone = 'Phone number is required';
+    else if (!phoneNorm) errors.phone = 'Enter a valid Irish number, e.g. 087 123 4567 or +353 87 123 4567';
+    else if (dup) errors.phone = `Duplicate — already on ${dup.name} (${dup.id})`;
+  }
   if (!f.email.trim()) errors.email = 'Email is required';
   else if (!EMAIL_RE.test(f.email.trim())) errors.email = 'Enter a valid email address';
   if (!f.productInterest) errors.productInterest = 'Choose the product the customer is interested in';
@@ -147,9 +149,10 @@ export function LeadFormModal({ open, onClose, lead, onSaved }: { open: boolean;
 
   const save = async () => {
     setTouched(true);
-    if (!valid || !phoneNorm) return;
+    const phone = lockedLive ? lead?.phone ?? '' : phoneNorm;
+    if (!valid || phone === null) return;
     const patch = {
-      name: f.name.trim(), phone: phoneNorm, email: f.email.trim().toLowerCase(), city: f.city.trim() || 'Dublin', customerType: f.customerType,
+      name: f.name.trim(), phone, email: f.email.trim().toLowerCase(), city: f.city.trim() || 'Dublin', customerType: f.customerType,
       productInterest: f.productInterest, campaignId: f.campaignId || null, source: f.source, tags: f.tags, consent: f.consent,
       assignedRepId: f.assignedRepId || null, currentPlan: f.currentPlan.trim() || 'Unknown', dnc: suppressed || (lead?.dnc ?? false),
     };

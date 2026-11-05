@@ -82,10 +82,10 @@ interface Ctx extends State {
   mode: 'live' | 'demo'; loadError: string | null;
   role: Role; setRole: (r: Role) => void; can: (p: Permission) => boolean; me: TeamMember;
   toast: (title: string, desc?: string, kind?: Toast['kind']) => void; toasts: Toast[]; dismissToast: (id: number) => void;
-  updateLead: (id: string, patch: Partial<Lead>) => void; updateLeads: (ids: string[], patch: Partial<Lead>) => void;
+  updateLead: (id: string, patch: Partial<Lead>) => void; updateLeads: (ids: string[], patch: Partial<Lead>) => Promise<boolean>;
   addLead: (l: Omit<Lead, 'id'>) => Promise<Lead | null>; addLeads: (ls: Omit<Lead, 'id'>[]) => Promise<boolean>; archiveLeads: (ids: string[]) => void; deleteLeads: (ids: string[]) => void;
   addNote: (leadId: string, text: string) => void;
-  updateCampaign: (id: string, patch: Partial<Campaign>) => void; addCampaign: (c: Omit<Campaign, 'id'>) => Promise<Campaign | null>;
+  updateCampaign: (id: string, patch: Partial<Campaign>) => Promise<boolean>; addCampaign: (c: Omit<Campaign, 'id'>) => Promise<Campaign | null>;
   updateAgent: (id: string, patch: Partial<Agent>) => void; addAgent: (a: Omit<Agent, 'id'>) => Agent;
   upsertProduct: (p: Product) => void; upsertOffer: (o: Offer) => void;
   upsertAppointment: (a: Appointment) => void; upsertTask: (t: Task) => void;
@@ -206,11 +206,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
   const writeLead = (id: string, patch: Partial<Lead>) => { const row = leadToDb(patch); if (Object.keys(row).length) void write(() => repo.saveLead(id, row)); };
-  const writeLeads = (ids: string[], patch: Partial<Lead>) => { const row = leadToDb(patch); if (Object.keys(row).length) void write(() => repo.saveLeads(ids, row)); };
+  const saved = async (op: () => Promise<void>) => (await write(() => op().then(() => true))) === true;
+  const writeLeads = (ids: string[], patch: Partial<Lead>) => { const row = leadToDb(patch); return Object.keys(row).length ? saved(() => repo.saveLeads(ids, row)) : Promise.resolve(true); };
 
   const api: Omit<Ctx, keyof State | 'mode' | 'loadError' | 'role' | 'setRole' | 'can' | 'me' | 'toast' | 'toasts' | 'dismissToast' | 'audit' | 'leadById' | 'campaignById' | 'agentById' | 'productById' | 'memberById' | 'eligibility'> = {
     updateLead: (id, patch) => { mapUpdate('leads', id, patch); if (live) writeLead(id, patch); },
-    updateLeads: (ids, patch) => { const set = new Set(ids); setState((s) => ({ ...s, leads: s.leads.map((l) => (set.has(l.id) ? { ...l, ...patch } : l)) })); if (live) writeLeads(ids, patch); },
+    updateLeads: async (ids, patch) => { const set = new Set(ids); setState((s) => ({ ...s, leads: s.leads.map((l) => (set.has(l.id) ? { ...l, ...patch } : l)) })); return live ? writeLeads(ids, patch) : true; },
     addLead: async (l) => {
       const id = live ? await write(() => repo.insertLead(leadInsertRow(l))) : `LD-${60000 + Math.floor(Math.random() * 30000)}`;
       if (id === null) return null;
@@ -218,22 +219,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     },
     addLeads: async (ls) => {
       if (live) {
-        if ((await write(() => repo.insertLeads(ls.map(leadInsertRow)).then(() => true))) === null) return false;
+        if (!(await saved(() => repo.insertLeads(ls.map(leadInsertRow))))) return false;
         await refresh(); return true;
       }
       setState((s) => ({ ...s, leads: [...ls.map((l, i) => ({ ...l, id: `LD-${70000 + Math.floor(Math.random() * 20000) + i}` }) as Lead), ...s.leads] }));
       return true;
     },
-    archiveLeads: (ids) => { const set = new Set(ids); setState((s) => ({ ...s, leads: s.leads.map((l) => (set.has(l.id) ? { ...l, archived: true } : l)) })); if (live) writeLeads(ids, { archived: true }); },
+    archiveLeads: (ids) => { const set = new Set(ids); setState((s) => ({ ...s, leads: s.leads.map((l) => (set.has(l.id) ? { ...l, archived: true } : l)) })); if (live) void writeLeads(ids, { archived: true }); },
     deleteLeads: (ids) => { if (live) return; const set = new Set(ids); setState((s) => ({ ...s, leads: s.leads.filter((l) => !set.has(l.id)) })); },
     addNote: (leadId, text) => {
       setState((s) => ({ ...s, leads: s.leads.map((l) => (l.id === leadId ? { ...l, notes: [{ id: `n-${Date.now()}`, author: me.name, at: new Date().toISOString(), text }, ...l.notes] } : l)) }));
       if (live) void write(() => repo.addNote(leadId, me.name, text));
     },
-    updateCampaign: (id, patch) => {
+    updateCampaign: async (id, patch) => {
       mapUpdate('campaigns', id, patch);
       const row = campaignToDb(patch);
-      if (live && Object.keys(row).length) void write(() => repo.saveCampaign(id, row));
+      return live && Object.keys(row).length ? saved(() => repo.saveCampaign(id, row)) : true;
     },
     addCampaign: async (c) => {
       const id = live ? await write(() => repo.insertCampaign({ ...campaignToDb(c), created_by: me.id })) : `CMP-${1100 + Math.floor(Math.random() * 800)}`;

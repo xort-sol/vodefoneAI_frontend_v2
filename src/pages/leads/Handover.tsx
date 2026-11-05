@@ -11,7 +11,7 @@ import {
 } from '../../components/ui';
 import type { Call, Lead, LeadStatus, Product } from '../../data/types';
 import { DAY, NOW } from '../../data/seed';
-import { fmtDateTime, fmtDur, fmtGBP, fmtRelative } from '../../lib/format';
+import { fmtDateTime, fmtDur, fmtEUR, fmtRelative } from '../../lib/format';
 import { LEAD_STATUSES, ScheduleModal, uniq, useReps } from './shared';
 
 /* ---------------- insights derived from call data ---------------- */
@@ -170,7 +170,7 @@ export function HandoverDrawer({ lead, calls, onClose, actingRepId, onContact, o
         <Section icon={<Target size={12} />} title="Customer & product">
           <KV items={[
             ['Email', <span className="truncate" key="e">{lead.email}</span>], ['Current plan', `${lead.currentPlan} · ${lead.tenureMonths} mo`],
-            ['Product interest', <span key="p">{product?.name} <span className="muted">· {product ? fmtGBP(product.monthlyPrice) : ''}/mo · {product?.contractMonths} mo</span></span>],
+            ['Product interest', <span key="p">{product?.name} <span className="muted">· {product ? fmtEUR(product.monthlyPrice) : ''}/mo · {product?.contractMonths} mo</span></span>],
             ['Campaign', lead.campaignId ? <Link key="c" to={`/campaigns/${lead.campaignId}`}>{app.campaignById.get(lead.campaignId)?.name}</Link> : '—'],
             ['Sentiment', <StatusBadge key="s" status={lead.sentiment} dot={false} />], ['Status', canEdit ? <select key="st" className="select sm soft" style={{ width: 180, height: 28 }} value={lead.status} onChange={(e) => setStatus(e.target.value as LeadStatus)}>{LEAD_STATUSES.map((s) => <option key={s}>{s}</option>)}</select> : lead.status],
           ]} />
@@ -299,7 +299,7 @@ export function SaleOutcomeModal({ lead, onClose }: { lead: Lead | null; onClose
   const errs = {
     product: !productId ? 'Choose a product' : '',
     months: !(months >= 1 && months <= 48) ? 'Contract must be 1–48 months' : '',
-    monthly: outcome === 'Won' && !(mv > 0 && mv < 10000) ? 'Enter a monthly value above £0' : '',
+    monthly: outcome === 'Won' && !(mv > 0 && mv < 10000) ? 'Enter a monthly value above €0' : '',
     reason: outcome === 'Lost' && !reason ? 'Choose a reason' : '',
   };
   const tcv = (mv > 0 ? mv : 0) * months;
@@ -309,9 +309,9 @@ export function SaleOutcomeModal({ lead, onClose }: { lead: Lead | null; onClose
     const p = app.productById.get(productId);
     if (outcome === 'Won') {
       app.updateLead(lead.id, { status: 'Converted', productInterest: productId, nextFollowUp: null });
-      app.addNote(lead.id, `Sale won: ${p?.name}, ${months} months at ${fmtGBP(mv, 2)}/mo (TCV ${fmtGBP(tcv)}).${notes.trim() ? ` ${notes.trim()}` : ''}`);
-      app.audit('Recorded sale', `${lead.name} (${lead.id}) · ${p?.name} · ${fmtGBP(tcv)}`, 'Data');
-      app.toast('Sale recorded', `${lead.name} · ${p?.name} · ${fmtGBP(tcv)} contract value`);
+      app.addNote(lead.id, `Sale won: ${p?.name}, ${months} months at ${fmtEUR(mv, 2)}/mo (TCV ${fmtEUR(tcv)}).${notes.trim() ? ` ${notes.trim()}` : ''}`);
+      app.audit('Recorded sale', `${lead.name} (${lead.id}) · ${p?.name} · ${fmtEUR(tcv)}`, 'Data');
+      app.toast('Sale recorded', `${lead.name} · ${p?.name} · ${fmtEUR(tcv)} contract value`);
     } else {
       app.updateLead(lead.id, { status: 'Not interested', nextFollowUp: null });
       app.addNote(lead.id, `Sale lost: ${reason}.${notes.trim() ? ` ${notes.trim()}` : ''}`);
@@ -329,11 +329,11 @@ export function SaleOutcomeModal({ lead, onClose }: { lead: Lead | null; onClose
         <div className="form-grid">
           <Field label="Product" required error={e('product')} className="span-all"><select className="select" value={productId} onChange={(x) => { const p = app.productById.get(x.target.value); setProductId(x.target.value); if (p) { setMonths(p.contractMonths); setMonthly(String(p.monthlyPrice)); } }}>{app.products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
           <Field label="Contract length (months)" required error={e('months')}><input type="number" className="input" min={1} max={48} value={months} onChange={(x) => setMonths(+x.target.value)} /></Field>
-          <Field label="Monthly value (£)" required={outcome === 'Won'} error={e('monthly')}><input type="number" step="0.01" className="input" value={monthly} onChange={(x) => setMonthly(x.target.value)} /></Field>
+          <Field label="Monthly value (€)" required={outcome === 'Won'} error={e('monthly')}><input type="number" step="0.01" className="input" value={monthly} onChange={(x) => setMonthly(x.target.value)} /></Field>
           {outcome === 'Lost' && <Field label="Reason" required error={e('reason')} className="span-all"><select className={`select ${e('reason') ? 'invalid' : ''}`} value={reason} onChange={(x) => setReason(x.target.value)}><option value="">Select reason…</option>{LOST_REASONS.map((r) => <option key={r}>{r}</option>)}</select></Field>}
           <Field label="Notes" className="span-all"><textarea className="textarea" style={{ minHeight: 64 }} value={notes} onChange={(x) => setNotes(x.target.value)} placeholder="Order reference, add-ons, delivery date…" /></Field>
         </div>
-        {outcome === 'Won' && <div className="inset-box row between"><span className="small muted">Total contract value</span><span className="mono strong">{fmtGBP(tcv)}</span></div>}
+        {outcome === 'Won' && <div className="inset-box row between"><span className="small muted">Total contract value</span><span className="mono strong">{fmtEUR(tcv)}</span></div>}
         <div className="xs muted row gap-4"><ExternalLink size={11} />Order placement happens in the billing system; this records the outcome for reporting.</div>
       </div>
     </Modal>

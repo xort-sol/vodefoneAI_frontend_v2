@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../store/store';
 import { Avatar, Badge, Button, Card, Field, KV, PageHeader, Progress, SimBadge, StatusBadge, Switch } from '../components/ui';
-import { fmtDate, fmtDur, fmtGBP, fmtInt, fmtPct } from '../lib/format';
+import { fmtDate, fmtDur, fmtEUR, fmtInt, fmtPct } from '../lib/format';
 import { DAY, NOW, startOfDay } from '../data/seed';
 import type { Campaign, CustomerType, Lead } from '../data/types';
 import { DayChips, TIMEZONES, VOICEMAIL_POLICIES, daysRange, getCampaignExtras, setCampaignExtras, toMin, type CampaignExtras, ModulePage } from './campaigns/shared';
@@ -161,7 +161,7 @@ export default function CampaignWizard() {
   type Check = { label: string; detail: string; state: 'pass' | 'warn' | 'fail' };
   const checks: Check[] = [
     { label: 'Marketing consent verified', detail: `${fmtInt(est.n)} selected leads hold valid voice consent`, state: est.n > 0 ? 'pass' : 'fail' },
-    { label: 'Suppression & TPS screening', detail: match.compliance ? `${fmtInt(match.compliance)} leads excluded automatically (DNC, consent, attempt limits)` : 'No suppressed numbers in selection', state: 'pass' },
+    { label: 'Suppression & National Directory Database screening', detail: match.compliance ? `${fmtInt(match.compliance)} leads excluded automatically (DNC, consent, attempt limits)` : 'No suppressed numbers in selection', state: 'pass' },
     { label: 'Product approved for outbound', detail: product ? `${product.name} · reviewed ${fmtDate(product.lastReviewed)}` : 'No product selected', state: product?.approved ? 'pass' : 'fail' },
     { label: 'Offer validity', detail: offer ? (new Date(offer.endDate) < fromYmd(form.endDate || ymd(today)) ? `${offer.name} ends ${fmtDate(offer.endDate)} — before campaign end` : `${offer.name} valid until ${fmtDate(offer.endDate)}`) : 'No promotional offer — standard pricing only', state: offer && new Date(offer.endDate) < fromYmd(form.endDate || ymd(today)) ? 'warn' : 'pass' },
     { label: 'AI agent readiness', detail: agent ? `${agent.name} ${agent.version} · ${agent.status}${agent.status === 'Testing' ? ' — supervised test calls only' : ''}` : 'No agent selected', state: !agent ? 'fail' : agent.status === 'Live' ? 'pass' : agent.status === 'Testing' ? 'warn' : 'fail' },
@@ -341,7 +341,7 @@ export default function CampaignWizard() {
             <button key={p.id} type="button" className={`option-card ${on ? 'on' : ''}`} disabled={!ok}
               onClick={() => setForm((f) => ({ ...f, productId: p.id, offerId: '', pitch: p.benefits.slice(0, 2) }))}
               style={!ok ? { opacity: 0.55, cursor: 'not-allowed', background: '#fafafa' } : undefined}>
-              <div className="row between"><span className="cell-primary">{p.name}</span><span className="mono small">{fmtGBP(p.monthlyPrice)}/mo</span></div>
+              <div className="row between"><span className="cell-primary">{p.name}</span><span className="mono small">{fmtEUR(p.monthlyPrice)}/mo</span></div>
               <div className="row mt-4"><span className="cell-sub">{p.category} · {p.contractMonths}-month · {p.data}{p.speed ? ` · ${p.speed}` : ''}</span>{p.availability !== 'Available' && <StatusBadge status={p.availability} dot={false} />}</div>
               {!ok && <div className="row xs mt-8" style={{ color: 'var(--red)' }}><Lock size={12} />Not approved by compliance — last reviewed {fmtDate(p.lastReviewed)}</div>}
             </button>
@@ -433,14 +433,14 @@ export default function CampaignWizard() {
       <div className="stat-strip" style={{ gridTemplateColumns: 'repeat(5, minmax(0,1fr))' }}>
         <MiniStat label="Leads" value={fmtInt(est.n)} />
         <MiniStat label="Est. calls" value={fmtInt(est.calls)} foot={`${fmtInt(est.connected)} connected`} />
-        <MiniStat label="Est. minutes" value={fmtInt(est.minutes)} foot={`at ${fmtGBP(est.cpm, 3)}/min`} />
-        <MiniStat label="Est. cost" value={fmtGBP(est.cost)} foot={est.qualified ? `${fmtGBP(est.cpq, 2)} / qualified` : undefined} />
+        <MiniStat label="Est. minutes" value={fmtInt(est.minutes)} foot={`at ${fmtEUR(est.cpm, 3)}/min`} />
+        <MiniStat label="Est. cost" value={fmtEUR(est.cost)} foot={est.qualified ? `${fmtEUR(est.cpq, 2)} / qualified` : undefined} />
         <MiniStat label="Est. duration" value={`${est.calendarDays}d`} foot={`${est.callingDays} calling days · ~${fmtInt(est.qualified)} qualified`} />
       </div>
       <div className="grid g-2">
         <ReviewCard title="Campaign" onEdit={() => setStep(0)} items={[['Name', form.name || '—'], ['Objective', form.objective || '—'], ['Owner', form.owner], ['Dates', form.startDate && form.endDate ? `${fmtDate(fromYmd(form.startDate))} – ${fmtDate(fromYmd(form.endDate))}` : '—']]} />
         <ReviewCard title="Audience" onEdit={() => setStep(1)} items={[['Selected leads', `${fmtInt(est.n)} of ${fmtInt(match.matched.length)} matching`], ['Filters', describeFilters(form)], ['Excluded', `${fmtInt(match.compliance)} compliance · ${fmtInt(match.assigned)} assigned elsewhere`]]} />
-        <ReviewCard title="AI agent & product" onEdit={() => setStep(3)} items={[['Agent', agent ? <span className="row gap-4"><Avatar initials={agent.initials} color={agent.color} size="sm" agent />{agent.name} · <StatusBadge status={agent.status} /></span> : '—'], ['Product', product ? `${product.name} · ${fmtGBP(product.monthlyPrice)}/mo` : '—'], ['Offer', offer ? `${offer.name} (${offer.code})` : 'None'], ['Pitch', form.pitch.join(', ') || '—']]} />
+        <ReviewCard title="AI agent & product" onEdit={() => setStep(3)} items={[['Agent', agent ? <span className="row gap-4"><Avatar initials={agent.initials} color={agent.color} size="sm" agent />{agent.name} · <StatusBadge status={agent.status} /></span> : '—'], ['Product', product ? `${product.name} · ${fmtEUR(product.monthlyPrice)}/mo` : '—'], ['Offer', offer ? `${offer.name} (${offer.code})` : 'None'], ['Pitch', form.pitch.join(', ') || '—']]} />
         <ReviewCard title="Qualification & schedule" onEdit={() => setStep(5)} items={[['Min. score', `${form.minScore} · hot ≥ ${form.hot} · warm ≥ ${form.warm}`], ['Requires', [form.requireBudget && 'budget', form.requireDecisionMaker && 'decision maker', form.requireTimeline && 'timeline'].filter(Boolean).join(', ') || 'No hard requirements'], ['Window', `${daysRange(form.days)} · ${form.start}–${form.end} (${form.timezone})`], ['Pacing', `${form.concurrency} concurrent · ${fmtInt(form.dailyCap)}/day · ${form.maxAttempts} attempts / ${form.intervalHours}h`], ['Voicemail', form.voicemail]]} />
       </div>
       <Card title="Compliance checks" sub="Automatically evaluated before any call is placed">
@@ -500,7 +500,7 @@ export default function CampaignWizard() {
               <div className="row between small"><span className="row gap-4 subtle"><Users size={13} />Leads</span><span className="mono">{fmtInt(est.n)}</span></div>
               <div className="row between small"><span className="row gap-4 subtle"><Clock size={13} />Minutes</span><span className="mono">{fmtInt(est.minutes)}</span></div>
               <div className="row between small"><span className="row gap-4 subtle"><CalendarClock size={13} />Duration</span><span className="mono">{est.calendarDays}d</span></div>
-              <div className="row between small"><span className="subtle">Est. cost</span><span className="mono strong">{fmtGBP(est.cost)}</span></div>
+              <div className="row between small"><span className="subtle">Est. cost</span><span className="mono strong">{fmtEUR(est.cost)}</span></div>
             </div>
             <div className="mt-12"><Progress value={((step + 1) / STEPS.length) * 100} /></div>
             <div className="xs muted mt-4">Step {step + 1} of {STEPS.length}</div>
@@ -559,7 +559,7 @@ function initialForm(c: Campaign | undefined, me: string, settings: { hotThresho
     agentId: c?.agentId ?? '', productId: c?.productId ?? '', offerId: c?.offerId ?? '', pitch: ex?.pitch ?? [],
     minScore: c?.qualification.minScore ?? 70, requireBudget: c?.qualification.requireBudget ?? false, requireDecisionMaker: c?.qualification.requireDecisionMaker ?? false, requireTimeline: c?.qualification.requireTimeline ?? true,
     hot: ex?.hotThreshold ?? settings.hotThreshold, warm: ex?.warmThreshold ?? settings.warmThreshold, questions: ex?.questions ?? [...DEFAULT_QUESTIONS],
-    days: c?.schedule.days ?? settings.callingHours.days.filter((d) => d !== 'Sat'), start: c?.schedule.start ?? '09:30', end: c?.schedule.end ?? '18:00', timezone: c?.schedule.timezone ?? 'Europe/London',
+    days: c?.schedule.days ?? settings.callingHours.days.filter((d) => d !== 'Sat'), start: c?.schedule.start ?? '09:30', end: c?.schedule.end ?? '18:00', timezone: c?.schedule.timezone ?? 'Europe/Dublin',
     concurrency: c?.concurrency ?? 6, dailyCap: c?.dailyCap ?? 300, maxAttempts: c?.retry.maxAttempts ?? 3, intervalHours: c?.retry.intervalHours ?? 24, voicemail: ex?.voicemail ?? 'Do not leave a message',
   };
 }

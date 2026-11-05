@@ -7,7 +7,7 @@ import {
 } from '../components/ui';
 import { DateRangePicker, useRangeState } from '../components/DateRange';
 import { inRange, summarize } from '../lib/metrics';
-import { downloadFile, fmtCompact, fmtDur, fmtGBP, fmtInt, fmtPct, toCSV } from '../lib/format';
+import { downloadFile, fmtCompact, fmtDur, fmtEUR, fmtInt, fmtPct, toCSV } from '../lib/format';
 import type { Call, CallOutcome } from '../data/types';
 import { hash, setNavList } from './conversations/state';
 
@@ -19,7 +19,7 @@ const LEVEL_TONE: Record<Level, Tone> = { INFO: 'neutral', WARN: 'amber', ERROR:
 
 const pad = (n: number, l = 2) => String(n).padStart(l, '0');
 const fmtStamp = (ms: number) => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`; };
-const maskPhone = (p?: string) => (p ? p.replace(/(\+44 7\d{3}) \d{3} (\d{3})/, '$1 ••• $2') : '—');
+const maskPhone = (p?: string) => (p ? p.replace(/(\+3538\d)\d{4}(\d{3})/, '$1••••$2') : '—');
 
 /** Deterministic technical event log synthesised from a call record (simulated telephony/AI pipeline). */
 function eventsFor(c: Call, phone: string | undefined, leadId: string): LogEvent[] {
@@ -46,7 +46,7 @@ function eventsFor(c: Call, phone: string | undefined, leadId: string): LogEvent
     default: add(ringEnd, 'INFO', 'sip', 'sip.final', '200 OK · media established codec=OPUS/48000');
   }
   const end = ringEnd + (c.connected ? c.duration * 1000 : 0);
-  add(end + 50, 'INFO', 'sip', 'sip.bye', `BYE · billable=${c.duration}s cost=£${c.cost.toFixed(3)}`);
+  add(end + 50, 'INFO', 'sip', 'sip.bye', `BYE · billable=${c.duration}s cost=€${c.cost.toFixed(3)}`);
   if (c.connected) {
     if (c.recording !== 'Not recorded') add(end + 900, 'INFO', 'recording', 'recording.stored', `s3://vf-recordings/eu-west-2/${c.id}.opus · ${(c.duration * 6.1).toFixed(0)} KB`);
     if (h % 23 === 0) add(end + 2100, 'WARN', 'transcribe', 'transcription.retry', 'job timed out after 30s · retry 1/3');
@@ -149,7 +149,7 @@ export default function CallHistory() {
     { key: 'outcome', header: 'Outcome', sort: (c) => c.outcome, render: (c) => <span className="nowrap"><StatusBadge status={c.outcome} /></span> },
     { key: 'conn', header: 'Connected', sort: (c) => (c.connected ? 1 : 0), render: (c) => c.connected ? <Check size={15} className="green" aria-label="Connected" /> : <X size={15} className="muted" aria-label="Not connected" /> },
     { key: 'dur', header: 'Duration', align: 'right', sort: (c) => c.duration, render: (c) => <span className="mono small">{fmtDur(c.duration)}</span> },
-    { key: 'cost', header: 'Cost', align: 'right', sort: (c) => c.cost, render: (c) => <span className="mono small">{fmtGBP(c.cost, 3)}</span> },
+    { key: 'cost', header: 'Cost', align: 'right', sort: (c) => c.cost, render: (c) => <span className="mono small">{fmtEUR(c.cost, 3)}</span> },
     { key: 'rec', header: 'Recording', sort: (c) => c.recording, render: (c) => <span className="nowrap"><StatusBadge status={c.recording} dot={false} /></span> },
     { key: 'fail', header: 'Failure reason', sort: (c) => c.failureReason ?? '', render: (c) => c.failureReason ? <span className="small red" style={{ display: 'block', minWidth: 130 }}>{c.failureReason}</span> : <span className="muted">—</span> },
   ];
@@ -194,7 +194,7 @@ export default function CallHistory() {
         <Stat label="Connected" value={fmtInt(sum.connected)} foot={`${fmtPct(sum.connectRate)} connect rate`} />
         <Stat label="Unsuccessful" value={fmtInt(sum.failed)} foot={<button className="btn link small" onClick={() => { setOutcome('Failed'); setTab('calls'); }}>{fmtInt(rows.filter((c) => c.outcome === 'Failed').length)} technical failures</button>} />
         <Stat label="Talk time" value={`${fmtCompact(sum.minutes)} min`} foot={`avg ${fmtDur(sum.avgDuration)} connected`} />
-        <Stat label="Cost" value={fmtGBP(sum.cost, 2)} foot={`${fmtGBP(sum.total ? sum.cost / sum.total : 0, 3)} per attempt`} />
+        <Stat label="Cost" value={fmtEUR(sum.cost, 2)} foot={`${fmtEUR(sum.total ? sum.cost / sum.total : 0, 3)} per attempt`} />
       </div>
 
       <Tabs value={tab} onChange={setTab} tabs={[{ value: 'calls', label: 'Call log', count: rows.length }, { value: 'logs', label: 'System logs', icon: <Terminal size={14} /> }]} />

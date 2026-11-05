@@ -143,7 +143,7 @@ export function Instructions({ draft, set, setB, ro }: SectionProps) {
   const insert = (v: string) => set({ instructions: `${draft.instructions}${draft.instructions.endsWith(' ') ? '' : ' '}${v}` });
   return (
     <Card title="Agent instructions" sub="System prompt and mandatory call-opening text">
-      {!disc && <div className="banner warn" style={{ marginBottom: 16 }}><AlertTriangle /><div><b>Mandatory disclosure missing.</b> UK guidance requires the agent to state it is an AI and that the call is recorded. Publishing is blocked until this is filled in.</div></div>}
+      {!disc && <div className="banner warn" style={{ marginBottom: 16 }}><AlertTriangle /><div><b>Mandatory disclosure missing.</b> Irish guidance requires the agent to state that it is an AI. Publishing is blocked until this is filled in.</div></div>}
       {disc && !greetHasDisc && <div className="banner info" style={{ marginBottom: 16 }}><Info />The greeting does not mention the AI/recording notice, so the disclosure text will be appended automatically after the greeting.</div>}
       <Field label="System prompt" hint={`${draft.instructions.length.toLocaleString('en-GB')} / 4,000 characters`} error={draft.instructions.length > 4000 && 'System prompt is too long'}>
         <textarea className="textarea mono" style={{ minHeight: 180, fontSize: 12.5 }} value={draft.instructions} disabled={ro} onChange={(e) => set({ instructions: e.target.value })} />
@@ -192,7 +192,7 @@ export function Scripts({ draft, setB, ro }: SectionProps) {
                 <Field label="Pitch"><textarea className="textarea" value={s.pitch} disabled={ro} onChange={(e) => upd(s.id, { pitch: e.target.value })} /></Field>
                 <Field label="Closing"><textarea className="textarea" value={s.closing} disabled={ro} onChange={(e) => upd(s.id, { closing: e.target.value })} /></Field>
               </div>
-              {p && /£\d+/.test(s.pitch) && !s.pitch.includes(`£${p.monthlyPrice}`) && <div className="banner warn mt-8"><AlertTriangle />Pitch quotes a price that does not match the approved price of £{p.monthlyPrice}/month.</div>}
+              {p && /€\d+/.test(s.pitch) && !s.pitch.includes(`€${p.monthlyPrice}`) && <div className="banner warn mt-8"><AlertTriangle />Pitch quotes a price that does not match the approved price of €{p.monthlyPrice}/month.</div>}
             </div>
           );
         })}

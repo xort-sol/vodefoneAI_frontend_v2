@@ -20,10 +20,10 @@ function useSaver() {
 }
 
 /* ---------- Organisation ---------- */
-const TZ = ['Europe/London', 'Europe/Dublin', 'Europe/Amsterdam', 'UTC'];
+const TZ = ['Europe/Dublin', 'Europe/London', 'Europe/Amsterdam', 'UTC'];
 export function OrganisationSection({ canEdit }: P) {
   const app = useApp(); const save = useSaver();
-  const [extra, setExtra] = useLocalStore('org-extra', { legalName: 'Vodafone Limited', regNo: '01471587', address: 'Vodafone House, The Connection, Newbury, RG14 2FN', dpo: 'dpo@vodafone-demo.co.uk', locale: 'en-GB', currency: 'GBP' });
+  const [extra, setExtra] = useLocalStore('org-extra', { legalName: 'Vodafone Limited', regNo: '01471587', address: 'Vodafone House, The Connection, Newbury, RG14 2FN', dpo: 'dpo@vodafone-demo.ie', locale: 'en-IE', currency: 'EUR' });
   const d = useDraft({ orgName: app.settings.orgName, timezone: app.settings.timezone, ...extra });
   const err = d.draft.orgName.trim().length < 2 ? 'Organisation name is required' : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.draft.dpo) ? 'Enter a valid email' : '';
   return (
@@ -36,7 +36,7 @@ export function OrganisationSection({ canEdit }: P) {
           <Field label="Data protection officer" error={!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.draft.dpo) && 'Enter a valid email'}><input className="input" value={d.draft.dpo} onChange={(e) => d.patch({ dpo: e.target.value })} /></Field>
           <Field label="Registered address" className="span-all"><input className="input" value={d.draft.address} onChange={(e) => d.patch({ address: e.target.value })} /></Field>
           <Field label="Time zone"><select className="select" value={d.draft.timezone} onChange={(e) => d.patch({ timezone: e.target.value })}>{TZ.map((t) => <option key={t}>{t}</option>)}</select></Field>
-          <Field label="Locale & currency"><select className="select" value={`${d.draft.locale}|${d.draft.currency}`} onChange={(e) => { const [locale, currency] = e.target.value.split('|'); d.patch({ locale, currency }); }}><option value="en-GB|GBP">English (UK) · GBP £</option><option value="en-IE|EUR">English (Ireland) · EUR €</option></select></Field>
+          <Field label="Locale & currency"><select className="select" value={`${d.draft.locale}|${d.draft.currency}`} onChange={(e) => { const [locale, currency] = e.target.value.split('|'); d.patch({ locale, currency }); }}><option value="en-IE|EUR">English (Ireland) · EUR €</option><option value="en-GB|GBP">English (UK) · GBP</option></select></Field>
         </div>
       </FS>
       <SaveBar dirty={d.dirty} disabled={!canEdit} reason={LOCK} onReset={d.reset} onSave={() => {
@@ -187,7 +187,7 @@ export function CallingSection({ canEdit }: P) {
   const app = useApp(); const nav = useNavigate(); const s = app.settings;
   const [retry, setRetry] = useLocalStore('retry-defaults', { maxAttempts: 3, intervalHours: 24, spreadTimes: true });
   const d = useDraft({ maxConcurrent: s.maxConcurrent, dailyCap: s.dailyCap, callingPaused: s.callingPaused, ...retry });
-  const err = d.draft.maxConcurrent < 1 || d.draft.maxConcurrent > 200 ? 'Concurrent calls must be 1–200' : d.draft.dailyCap < 1 || d.draft.dailyCap > 50000 ? 'Daily cap must be 1–50,000' : d.draft.maxAttempts < 1 || d.draft.maxAttempts > 6 ? 'Max attempts must be 1–6 (Ofcom persistent misuse guidance)' : '';
+  const err = d.draft.maxConcurrent < 1 || d.draft.maxConcurrent > 200 ? 'Concurrent calls must be 1–200' : d.draft.dailyCap < 1 || d.draft.dailyCap > 50000 ? 'Daily cap must be 1–50,000' : d.draft.maxAttempts < 1 || d.draft.maxAttempts > 6 ? 'Max attempts must be 1–6 (ComReg guidance)' : '';
   const h = s.callingHours;
   return (
     <Card title="Calling rules" sub="Platform-wide limits. Campaigns can be stricter, never looser.">
@@ -315,8 +315,8 @@ export function NotifySection({ canEdit }: P) {
 
 /* ---------- Integrations ---------- */
 const INTEGRATION_META: Record<string, { desc: string; fields: [string, string][]; regions?: string[] }> = {
-  'Twilio Voice': { desc: 'Programmable voice for outbound SIP and PSTN calls.', fields: [['Account SID', 'AC…'], ['Caller ID', '+44 …']], regions: ['Dublin (IE1)', 'London (UK1)'] },
-  Vonage: { desc: 'Voice API with UK number ranges.', fields: [['Application ID', ''], ['Caller ID', '+44 …']], regions: ['EU', 'UK'] },
+  'Twilio Voice': { desc: 'Programmable voice for outbound SIP and PSTN calls.', fields: [['Account SID', 'AC…'], ['Caller ID', '+353 …']], regions: ['Dublin (IE1)', 'London (UK1)'] },
+  Vonage: { desc: 'Voice API with Irish number ranges.', fields: [['Application ID', ''], ['Caller ID', '+353 …']], regions: ['EU', 'UK'] },
   'Genesys Cloud': { desc: 'Contact-centre platform for human transfer and queues.', fields: [['Organisation', ''], ['Queue for transfers', '']], regions: ['eu-west-2 (London)', 'eu-central-1 (Frankfurt)'] },
   Salesforce: { desc: 'Sync leads, outcomes and tasks with Sales Cloud.', fields: [['Instance URL', 'https://….my.salesforce.com'], ['Lead owner fallback', '']] },
   'Microsoft Dynamics 365': { desc: 'Sync contacts and opportunities with Dynamics Sales.', fields: [['Environment URL', 'https://….crm11.dynamics.com'], ['Business unit', '']], regions: ['UK South', 'North Europe'] },

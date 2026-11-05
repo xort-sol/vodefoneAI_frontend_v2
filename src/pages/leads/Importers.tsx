@@ -5,7 +5,7 @@ import { useApp } from '../../store/store';
 import { Badge, Button, Field, Modal, Progress, SimBadge } from '../../components/ui';
 import type { CustomerType, Lead } from '../../data/types';
 import { fmtInt } from '../../lib/format';
-import { CUSTOMER_TYPES, EMAIL_RE, TAGS, normaliseUKPhone } from './shared';
+import { CUSTOMER_TYPES, EMAIL_RE, TAGS, normaliseIrishPhone } from './shared';
 
 /* ---------------- CSV parsing ---------------- */
 export function parseCSV(text: string): string[][] {
@@ -81,20 +81,20 @@ export function CsvImportModal({ open, onClose }: { open: boolean; onClose: () =
     const existing = app.leads[7]; const sup = app.suppressions.find((x) => !app.leads.some((l) => l.phone === x.phone)) ?? app.suppressions[0];
     const lines = [
       'Full name,Mobile,Email,Customer type,Product,City,Current plan,Tags,Consent',
-      'Amelia Hughes,07700 900123,amelia.hughes@gmail.com,Consumer,Unlimited Max 5G,Leeds,Red Entertainment 20GB,Renewal due,Y',
-      'Rohan Shah,+44 7700 900456,rohan.shah@outlook.com,Consumer,Full Fibre 500,Bristol,Superfast 2 Broadband,Bundle eligible;Family plan,Y',
-      'Brightwell Dental (Grace Evans),07700 900789,grace@brightwelldental.co.uk,SME,Business Unlimited,Cardiff,Business 10GB,Multi-line,Y',
-      'Kwame Mensah,07700 900321,kwame.mensah@icloud.com,Consumer,SIM Only 100GB,London,SIM Only 12GB,Price sensitive,Y',
+      'Amelia Hughes,087 900 0123,amelia.hughes@gmail.com,Consumer,RED Business Unlimited Max,Cork,RED Business Lite,Renewal due,Y',
+      'Rohan Shah,+353 87 900 0456,rohan.shah@outlook.com,Consumer,Business Broadband up to 500 Mbps,Galway,Legacy Broadband,Bundle eligible;Family plan,Y',
+      'Brightwell Dental (Grace Evans),087 900 0789,grace@brightwelldental.co.uk,SME,RED Business Unlimited,Limerick,RED Business Lite,Multi-line,Y',
+      'Kwame Mensah,087 900 0321,kwame.mensah@icloud.com,Consumer,RED Business Unlimited Sim Only,Dublin,Pay as you go,Price sensitive,Y',
       `"${existing.name}",${existing.phone},${existing.email},${existing.customerType},${app.productById.get(existing.productInterest)?.name},${existing.city},${existing.currentPlan},,Y`,
-      `"${sup.name}",${sup.phone},${sup.name.toLowerCase().replace(/[^a-z]/g, '.')}@yahoo.co.uk,Consumer,Unlimited Lite,Glasgow,Pay as you go,,Y`,
-      'Niamh Kelly,07700 90012,niamh.kelly@gmail.com,Consumer,Unlimited Lite,Belfast,Pay as you go,,Y',
-      'Ewan Fraser,07700 900654,ewan.fraser@,Consumer,Full Fibre 900,Edinburgh,Superfast 2 Broadband,Early adopter,Y',
-      'Fatima Ali,07700 900987,fatima.ali@btinternet.com,Consumer,Device Upgrade — Flagship,Birmingham,Red Extra 50GB,Loyal 5y+,Y',
-      'Amelia Hughes,07700 900123,amelia.h@gmail.com,Consumer,Unlimited Max 5G,Leeds,Red Entertainment 20GB,,Y',
-      'Callum Reid,07700 900111,callum@kestrelengineering.co.uk,Business,Business Fibre 900,Newcastle,Business 10GB,High value,Y',
-      'Bethan Morgan,07700 900222,bethan.morgan@gmail.com,Consumer,SIM Only 30GB,Cardiff,Pay as you go,,N',
-      'Imran Begum,020 7946 0018,imran.begum@outlook.com,Consumer,Superfast Broadband 74,London,Legacy Basics,Retention risk,Y',
-      ',07700 900333,unknown@example.com,Consumer,Unlimited Max 5G,Reading,,,Y',
+      `"${sup.name}",${sup.phone},${sup.name.toLowerCase().replace(/[^a-z]/g, '.')}@yahoo.co.uk,Consumer,RED Business Lite,Waterford,Pay as you go,,Y`,
+      'Niamh Kelly,087 900 012,niamh.kelly@gmail.com,Consumer,RED Business Lite,Kilkenny,Pay as you go,,Y',
+      'Ewan Fraser,087 900 0654,ewan.fraser@,Consumer,Business Broadband up to 1 Gbps (Best value deal),Sligo,Legacy Broadband,Early adopter,Y',
+      'Fatima Ali,087 900 0987,fatima.ali@btinternet.com,Consumer,Apple iPhone 17,Drogheda,RED Business Lite,Loyal 5y+,Y',
+      'Amelia Hughes,087 900 0123,amelia.h@gmail.com,Consumer,RED Business Unlimited Max,Cork,RED Business Lite,,Y',
+      'Callum Reid,087 900 0111,callum@kestrelengineering.co.uk,Business,Business Broadband up to 2 Gbps (Ultimate speed),Athlone,RED Business Lite,High value,Y',
+      'Bethan Morgan,087 900 0222,bethan.morgan@gmail.com,Consumer,30 Day Mobile Broadband Package,Tralee,Pay as you go,,N',
+      'Imran Begum,01 437 0018,imran.begum@outlook.com,Consumer,5G Unlimited Mobile Broadband,Dublin,Legacy Basics,Retention risk,Y',
+      ',087 900 0333,unknown@example.com,Consumer,RED Business Unlimited Max,Navan,,,Y',
     ];
     load('sample_leads_nov.csv', lines.join('\n'));
   };
@@ -108,10 +108,10 @@ export function CsvImportModal({ open, onClose }: { open: boolean; onClose: () =
     return data.map((cells, idx) => {
       const rec: Record<string, string> = {};
       map.forEach((t, i) => { if (t) rec[t] = cells[i] ?? ''; });
-      const phone = normaliseUKPhone(rec.phone ?? '');
+      const phone = normaliseIrishPhone(rec.phone ?? '');
       const base: Checked = { idx, cells: rec, state: 'valid' };
       if (!rec.name?.trim()) return { ...base, state: 'invalid', issue: 'Missing name' };
-      if (!phone) return { ...base, state: 'invalid', issue: `Invalid UK phone “${rec.phone ?? ''}”` };
+      if (!phone) return { ...base, state: 'invalid', issue: `Invalid Irish phone “${rec.phone ?? ''}”` };
       if (rec.email && !EMAIL_RE.test(rec.email)) return { ...base, state: 'invalid', issue: `Invalid email “${rec.email}”` };
       if (existingPhones.has(phone)) return { ...base, state: 'duplicate', issue: `Matches existing lead ${existingPhones.get(phone)}` };
       if (seen.has(phone)) return { ...base, state: 'duplicate', issue: 'Duplicate within file' };
@@ -122,7 +122,7 @@ export function CsvImportModal({ open, onClose }: { open: boolean; onClose: () =
       const product = findProduct(rec.product ?? '')?.id ?? defaultProduct;
       const tags = (rec.tags ?? '').split(/[;|]/).map((t) => t.trim()).filter((t) => t && TAGS.includes(t));
       const lead: Omit<Lead, 'id'> = {
-        name: rec.name.trim(), phone, email: (rec.email ?? '').toLowerCase(), city: rec.city || 'London', customerType: ct as CustomerType,
+        name: rec.name.trim(), phone, email: (rec.email ?? '').toLowerCase(), city: rec.city || 'Dublin', customerType: ct as CustomerType,
         currentPlan: rec.currentPlan || 'Unknown', tenureMonths: 0, productInterest: product, source: 'CSV import', campaignId: campaignId || null,
         status: consent && campaignId ? 'Queued' : 'New', score: 0, sentiment: 'Neutral', lastCallAt: null, attempts: 0, assignedRepId: null, nextFollowUp: null,
         tags, consent, dnc: false, createdAt: new Date().toISOString(), notes: [], aiSummary: '',
@@ -250,15 +250,15 @@ const CRMS = [
   { id: 'HubSpot', label: 'HubSpot', desc: 'CRM · Contacts & lists' },
 ] as const;
 const SEGMENTS = [
-  { id: 'renewal-60', label: 'Contract renewal due in 60 days', size: 48, product: 'p-unl-max', type: 'Consumer' as CustomerType, tag: 'Renewal due' },
-  { id: 'ooc-sim', label: 'Out-of-contract handset customers', size: 36, product: 'p-sim-100', type: 'Consumer' as CustomerType, tag: 'Price sensitive' },
-  { id: 'fibre-ready', label: 'Copper broadband · Full Fibre now available', size: 42, product: 'p-fibre-500', type: 'Consumer' as CustomerType, tag: 'Bundle eligible' },
+  { id: 'renewal-60', label: 'Contract renewal due in 60 days', size: 48, product: 'p-biz-max', type: 'Consumer' as CustomerType, tag: 'Renewal due' },
+  { id: 'ooc-sim', label: 'Out-of-contract handset customers', size: 36, product: 'p-sim-unl', type: 'Consumer' as CustomerType, tag: 'Price sensitive' },
+  { id: 'fibre-ready', label: 'Legacy broadband · Business Broadband now available', size: 42, product: 'p-bb-500', type: 'Consumer' as CustomerType, tag: 'Bundle eligible' },
   { id: 'sme-prospects', label: 'SME prospects · 2–20 employees', size: 24, product: 'p-biz-unl', type: 'SME' as CustomerType, tag: 'Multi-line' },
 ];
-const STAGES = ['Authenticating with CRM', 'Fetching segment records', 'Normalising phone numbers', 'De-duplicating against existing leads', 'Checking suppression & TPS', 'Writing lead records'];
+const STAGES = ['Authenticating with CRM', 'Fetching segment records', 'Normalising phone numbers', 'De-duplicating against existing leads', 'Checking suppression & National Directory Database', 'Writing lead records'];
 const FN = ['Oliver', 'Isla', 'Harry', 'Mia', 'Leo', 'Grace', 'Arthur', 'Freya', 'Theo', 'Evie', 'Rhys', 'Zara', 'Samuel', 'Chloe', 'Aisha', 'Ewan'];
 const LN = ['Turner', 'Ward', 'Hughes', 'Khan', 'Morgan', 'Reid', 'Shah', 'Okafor', 'Nowak', 'Fraser', 'Bennett', 'Chen', 'Price', 'Lewis'];
-const CITY = ['London', 'Manchester', 'Leeds', 'Bristol', 'Glasgow', 'Cardiff', 'Belfast', 'Newcastle'];
+const CITY = ['Dublin', 'Cork', 'Galway', 'Limerick', 'Waterford', 'Kilkenny', 'Sligo', 'Athlone'];
 
 export function CrmImportModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const app = useApp();
@@ -281,13 +281,13 @@ export function CrmImportModal({ open, onClose }: { open: boolean; onClose: () =
         const rows: Omit<Lead, 'id'>[] = []; let dupes = 0; let suppressed = 0;
         for (let i = 0; i < n; i++) {
           const fn = FN[(i * 7 + seg.length) % FN.length]; const ln = LN[(i * 5 + crm.length) % LN.length];
-          const phone = `+44 7${700 + ((i * 37 + crm.length * 11) % 299)} ${100 + ((i * 53) % 899)} ${100 + ((i * 97 + seg.length) % 899)}`;
+          const phone = `+3538${3 + ((i * 37 + crm.length * 11) % 7)}${1000000 + ((i * 53 + seg.length * 9973) % 8999999)}`;
           if (phones.has(phone) || i % 17 === 5) { dupes++; continue; }
           if (sup.has(phone) || i % 23 === 11) { suppressed++; continue; }
           phones.add(phone);
           rows.push({
             name: `${fn} ${ln}`, phone, email: `${fn}.${ln}${i}@${segment.type === 'SME' ? 'example-business.co.uk' : 'gmail.com'}`.toLowerCase(), city: CITY[i % CITY.length], customerType: segment.type,
-            currentPlan: segment.type === 'SME' ? 'Business 10GB' : 'Red Entertainment 20GB', tenureMonths: 12 + ((i * 13) % 90), productInterest: segment.product, source: 'CRM export',
+            currentPlan: 'RED Business Lite', tenureMonths: 12 + ((i * 13) % 90), productInterest: segment.product, source: 'CRM export',
             campaignId: campaignId || null, status: campaignId ? 'Queued' : 'New', score: 0, sentiment: 'Neutral', lastCallAt: null, attempts: 0, assignedRepId: null, nextFollowUp: null,
             tags: [segment.tag], consent: true, dnc: false, createdAt: new Date().toISOString(), notes: [], aiSummary: '',
           });

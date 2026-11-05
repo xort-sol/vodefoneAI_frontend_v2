@@ -6,7 +6,7 @@ import type { Role, TeamMember } from '../data/types';
 import {
   Avatar, Badge, Button, Card, DataTable, Field, FilterSelect, Modal, PageHeader, Progress, SearchInput, Tabs, type Column,
 } from '../components/ui';
-import { fmtGBP, fmtInt, fmtPct, fmtRelative, toCSV, downloadFile } from '../lib/format';
+import { fmtEUR, fmtInt, fmtPct, fmtRelative, toCSV, downloadFile } from '../lib/format';
 import { initialsOf, NOW } from '../data/seed';
 import {
   AdminStyles, MEMBER_STATUSES, PERMISSION_META, ROLES, ROLE_DESC, ROLE_TONE, TEAMS, roleHas, useMemberStats,
@@ -75,7 +75,7 @@ export default function Team() {
       </div>
     ) : <span className="muted small">n/a</span> },
     { key: 'conv', header: 'Conv.', align: 'right', sort: (r) => r.s.conversions, render: ({ s }) => <span className="mono tnum">{fmtInt(s.conversions)}</span> },
-    { key: 'rev', header: 'Revenue', align: 'right', sort: (r) => r.s.revenue, render: ({ s }) => <span className="mono tnum">{s.revenue ? fmtGBP(s.revenue) : '—'}</span> },
+    { key: 'rev', header: 'Revenue', align: 'right', sort: (r) => r.s.revenue, render: ({ s }) => <span className="mono tnum">{s.revenue ? fmtEUR(s.revenue) : '—'}</span> },
     { key: 'resp', header: 'Resp.', align: 'right', sort: (r) => r.m.responseHrs, render: ({ m }) => <span className="mono tnum">{m.responseHrs.toFixed(1)}h</span> },
     { key: 'last', header: 'Active', sort: (r) => +new Date(r.m.lastActive), render: ({ m }) => <span className="mono small muted">{fmtRelative(m.lastActive)}</span> },
   ];
@@ -103,7 +103,7 @@ export default function Team() {
         <div><div className="kpi-label">Available now</div><div className="kpi-value mt-4">{available}</div><div className="kpi-foot mt-4">{app.team.filter((m) => m.status === 'Busy').length} busy · {app.team.filter((m) => m.status === 'Offline').length} offline</div></div>
         <div><div className="kpi-label">Rep capacity used</div><div className="kpi-value mt-4">{fmtPct(totalCap ? (totalLoad / totalCap) * 100 : 0, 0)}</div><div className="kpi-foot mt-4"><span className="mono">{fmtInt(totalLoad)}/{fmtInt(totalCap)}</span>{totalLoad > totalCap && <Badge tone="orange">Over capacity</Badge>}</div></div>
         <div><div className="kpi-label">Conversions</div><div className="kpi-value mt-4">{fmtInt(totalConv)}</div><div className="kpi-foot mt-4">from assigned leads</div></div>
-        <div><div className="kpi-label">Contract revenue</div><div className="kpi-value mt-4">{fmtGBP(totalRev)}</div><div className="kpi-foot mt-4">monthly × term, converted</div></div>
+        <div><div className="kpi-label">Contract revenue</div><div className="kpi-value mt-4">{fmtEUR(totalRev)}</div><div className="kpi-foot mt-4">monthly × term, converted</div></div>
       </div>
 
       <Tabs value={tab} onChange={setTab} tabs={[
@@ -175,7 +175,7 @@ function TeamsTab({ rows, onOpen }: { rows: { m: TeamMember; s: ReturnType<Retur
                 </div>
               ))}
             </div>
-            <div className="row between small mt-8"><span className="muted">Revenue</span><span className="mono strong">{rev ? fmtGBP(rev) : '—'}</span></div>
+            <div className="row between small mt-8"><span className="muted">Revenue</span><span className="mono strong">{rev ? fmtEUR(rev) : '—'}</span></div>
           </Card>
         );
       })}

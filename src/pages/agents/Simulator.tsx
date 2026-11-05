@@ -49,19 +49,19 @@ function respond(input: string, d: Draft, products: Product[], offers: Offer[], 
   if (has(t, ['business', 'employees', 'staff', 'company', 'lines'])) {
     const biz = approved.find((p) => p.category === 'Business Mobile') ?? prod;
     const offer = offers.find((o) => o.status === 'Active' && o.productIds.includes(biz.id));
-    return { productId: biz.id, msgs: [{ who: 'AI', text: `Great — for businesses, ${biz.name} gives each user ${biz.data.toLowerCase()} data for £${biz.monthlyPrice} per line a month on a ${biz.contractMonths}-month plan, excluding VAT.${offer ? ` There's also ${offer.name}: ${offer.discount.toLowerCase()}.` : ''} How many lines would you need?`, meta: `Product: ${biz.name} (approved)` }] };
+    return { productId: biz.id, msgs: [{ who: 'AI', text: `Great — for businesses, ${biz.name} gives each user ${biz.data.toLowerCase()} data for €${biz.monthlyPrice} per line a month on a ${biz.contractMonths}-month plan, excluding VAT.${offer ? ` There's also ${offer.name}: ${offer.discount.toLowerCase()}.` : ''} How many lines would you need?`, meta: `Product: ${biz.name} (approved)` }] };
   }
   if (has(t, ['too expensive', 'expensive', 'cheaper', "can't afford", 'too much'])) {
     const o = findObj(['expensive']);
     const cheaper = [...approved].filter((p) => p.monthlyPrice < (prod?.monthlyPrice ?? 0) && p.category.startsWith('Business') === (prod?.category.startsWith('Business') ?? false)).sort((a, b) => b.monthlyPrice - a.monthlyPrice)[0];
     const together = offers.find((x) => x.status === 'Active' && x.code.startsWith('TOGETHER') && x.productIds.includes(prod?.id ?? ''));
     const text = has(t, ['cheaper', 'cost', 'what would']) && cheaper
-      ? `The lower-cost option is ${cheaper.name} at £${cheaper.monthlyPrice} a month on a ${cheaper.contractMonths === 1 ? '30-day rolling' : `${cheaper.contractMonths}-month`} plan, with ${cheaper.data.toLowerCase()} data.`
-      : `I completely understand. ${together ? `If you have broadband with us, the ${together.name} takes ${together.discount.toLowerCase()}. ` : ''}${cheaper ? `There's also ${cheaper.name} at £${cheaper.monthlyPrice} a month if you'd like something lighter.` : 'I can email you the details to compare in your own time.'}`;
+      ? `The lower-cost option is ${cheaper.name} at €${cheaper.monthlyPrice} a month on a ${cheaper.contractMonths === 1 ? '30-day rolling' : `${cheaper.contractMonths}-month`} plan, with ${cheaper.data.toLowerCase()} data.`
+      : `I completely understand. ${together ? `If you have broadband with us, the ${together.name} takes ${together.discount.toLowerCase()}. ` : ''}${cheaper ? `There's also ${cheaper.name} at €${cheaper.monthlyPrice} a month if you'd like something lighter.` : 'I can email you the details to compare in your own time.'}`;
     return { productId: has(t, ['cheaper', 'what would']) && cheaper ? cheaper.id : undefined, msgs: [{ who: 'AI', text, meta: o ? `Objection matched: ${o.trigger}` : 'Pricing from approved catalogue' }] };
   }
   if (has(t, ['how much', 'price', 'cost', 'per month', 'monthly'])) {
-    return { msgs: [{ who: 'AI', text: `${prod.name} is £${prod.monthlyPrice} a month on a ${prod.contractMonths === 1 ? '30-day rolling' : `${prod.contractMonths}-month`} plan${prod.upfront ? ` with £${prod.upfront} upfront` : ' with nothing to pay upfront'}.`, meta: `Pricing: ${prod.name} (approved)` }] };
+    return { msgs: [{ who: 'AI', text: `${prod.name} is €${prod.monthlyPrice} a month on a ${prod.contractMonths === 1 ? '30-day rolling' : `${prod.contractMonths}-month`} plan${prod.upfront ? ` with €${prod.upfront} upfront` : ' with nothing to pay upfront'}.`, meta: `Pricing: ${prod.name} (approved)` }] };
   }
   if (has(t, ['happy with', 'already have', 'not interested', 'no thanks'])) {
     const o = findObj(['happy']);
@@ -86,8 +86,8 @@ function evaluate(msgs: Msg[], d: Draft, products: Product[], offers: Offer[]): 
   const disc = d.builder.disclosure.trim().toLowerCase();
   const disclosed = (!!disc && all.includes(disc.slice(0, 40))) || (all.includes('ai assistant') && all.includes('recorded'));
   const allowed = new Set<number>(); products.filter((p) => p.approved).forEach((p) => { allowed.add(p.monthlyPrice); allowed.add(p.upfront); });
-  offers.filter((o) => o.status === 'Active').forEach((o) => (o.discount.match(/£(\d+(?:\.\d+)?)/g) ?? []).forEach((m) => allowed.add(+m.slice(1))));
-  const quoted = (all.match(/£(\d+(?:\.\d+)?)/g) ?? []).map((m) => +m.slice(1));
+  offers.filter((o) => o.status === 'Active').forEach((o) => (o.discount.match(/€(\d+(?:\.\d+)?)/g) ?? []).forEach((m) => allowed.add(+m.slice(1))));
+  const quoted = (all.match(/€(\d+(?:\.\d+)?)/g) ?? []).map((m) => +m.slice(1));
   const bad = quoted.filter((q) => !allowed.has(q));
   const custOptOut = msgs.findIndex((m) => m.who === 'Customer' && /stop|opt out|remove|do not call|don't call/i.test(m.text));
   const optOk = custOptOut < 0 ? true : /do-not-call|won't receive|noted your preference/i.test(msgs.slice(custOptOut + 1).find((m) => m.who === 'AI')?.text ?? '');
@@ -95,7 +95,7 @@ function evaluate(msgs: Msg[], d: Draft, products: Product[], offers: Offer[]): 
   const pushy = /(act now|today only|must decide|last chance)/i.test(all);
   return [
     { label: 'Compliance disclosure said', pass: disclosed, detail: disclosed ? 'AI identity and recording notice given in greeting.' : 'Greeting did not include the mandatory disclosure.' },
-    { label: 'Pricing accurate', pass: bad.length === 0, detail: quoted.length ? (bad.length ? `Unapproved price quoted: ${bad.map((b) => `£${b}`).join(', ')}` : `${quoted.length} price${quoted.length > 1 ? 's' : ''} matched approved catalogue.`) : 'No prices quoted.' },
+    { label: 'Pricing accurate', pass: bad.length === 0, detail: quoted.length ? (bad.length ? `Unapproved price quoted: ${bad.map((b) => `€${b}`).join(', ')}` : `${quoted.length} price${quoted.length > 1 ? 's' : ''} matched approved catalogue.`) : 'No prices quoted.' },
     { label: 'Opt-out honoured', pass: optOk, detail: custOptOut < 0 ? 'No opt-out requested in this test.' : optOk ? 'Agent confirmed suppression and ended the call.' : 'Agent continued after opt-out request.' },
     { label: 'Tone & banned phrases', pass: banned.length === 0 && !pushy, detail: banned.length ? `Used banned phrase: “${banned[0]}”` : pushy ? 'High-pressure language detected.' : 'Polite, non-pressured language throughout.' },
   ];

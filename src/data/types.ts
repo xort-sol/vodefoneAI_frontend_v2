@@ -226,7 +226,7 @@ export interface Suppression {
   id: string;
   phone: string;
   name: string;
-  reason: 'Customer opt-out' | 'TPS registered' | 'Complaint' | 'Vulnerable customer' | 'Legal hold' | 'Deceased';
+  reason: 'Customer opt-out' | 'National Directory Database' | 'Complaint' | 'Vulnerable customer' | 'Legal hold' | 'Deceased';
   addedAt: string;
   addedBy: string;
 }

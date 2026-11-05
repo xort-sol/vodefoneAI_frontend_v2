@@ -34,17 +34,16 @@ export const fmtSlot = (iso: string | Date) => `${fmtWeekday(iso)} ${fmtDateShor
 export const isToday = (iso: string | Date) => new Date(iso).toDateString() === NOW.toDateString();
 export const uniq = <T,>(a: T[]) => Array.from(new Set(a));
 
-export function normaliseUKPhone(raw: string): string | null {
+export function normaliseIrishPhone(raw: string): string | null {
   const s = raw.replace(/[\s\-().]/g, '');
   let rest: string | null = null;
-  if (/^\+44\d+$/.test(s)) rest = s.slice(3);
-  else if (/^0044\d+$/.test(s)) rest = s.slice(4);
-  else if (/^44\d{10}$/.test(s)) rest = s.slice(2);
+  if (/^\+353\d+$/.test(s)) rest = s.slice(4);
+  else if (/^00353\d+$/.test(s)) rest = s.slice(5);
   else if (/^0\d+$/.test(s)) rest = s.slice(1);
   if (rest === null) return null;
-  if (rest.startsWith('0')) rest = rest.slice(1);
-  if (!/^[1237]\d{9}$/.test(rest)) return null;
-  return `+44 ${rest.slice(0, 4)} ${rest.slice(4, 7)} ${rest.slice(7)}`;
+  // mobile 8[3-9] + 7 digits; landline 7-9 digits after the trunk 0
+  if (!/^(?:8[3-9]\d{7}|[1-79]\d{6,8})$/.test(rest)) return null;
+  return `+353${rest}`;
 }
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -130,13 +129,13 @@ export function LeadFormModal({ open, onClose, lead, onSaved }: { open: boolean;
   useEffect(() => { if (open) { setF(init()); setTouched(false); } }, [open, lead?.id]);
   const set = <K extends keyof LeadForm>(k: K, v: LeadForm[K]) => setF((x) => ({ ...x, [k]: v }));
 
-  const phoneNorm = normaliseUKPhone(f.phone);
+  const phoneNorm = normaliseIrishPhone(f.phone);
   const dup = phoneNorm ? app.leads.find((l) => l.phone === phoneNorm && l.id !== lead?.id) : undefined;
   const suppressed = phoneNorm ? app.suppressions.some((s) => s.phone === phoneNorm) : false;
   const errors: Partial<Record<keyof LeadForm, string>> = {};
   if (f.name.trim().length < 2) errors.name = 'Enter the customer’s full name';
   if (!f.phone.trim()) errors.phone = 'Phone number is required';
-  else if (!phoneNorm) errors.phone = 'Enter a valid UK number, e.g. 07700 900123 or +44 7700 900123';
+  else if (!phoneNorm) errors.phone = 'Enter a valid Irish number, e.g. 087 123 4567 or +353 87 123 4567';
   else if (dup) errors.phone = `Duplicate — already on ${dup.name} (${dup.id})`;
   if (!f.email.trim()) errors.email = 'Email is required';
   else if (!EMAIL_RE.test(f.email.trim())) errors.email = 'Enter a valid email address';
@@ -149,7 +148,7 @@ export function LeadFormModal({ open, onClose, lead, onSaved }: { open: boolean;
     setTouched(true);
     if (!valid || !phoneNorm) return;
     const patch = {
-      name: f.name.trim(), phone: phoneNorm, email: f.email.trim().toLowerCase(), city: f.city.trim() || 'London', customerType: f.customerType,
+      name: f.name.trim(), phone: phoneNorm, email: f.email.trim().toLowerCase(), city: f.city.trim() || 'Dublin', customerType: f.customerType,
       productInterest: f.productInterest, campaignId: f.campaignId || null, source: f.source, tags: f.tags, consent: f.consent,
       assignedRepId: f.assignedRepId || null, currentPlan: f.currentPlan.trim() || 'Unknown', dnc: suppressed || (lead?.dnc ?? false),
     };
@@ -175,7 +174,7 @@ export function LeadFormModal({ open, onClose, lead, onSaved }: { open: boolean;
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={save}>{lead ? 'Save changes' : 'Add lead'}</Button></>}>
       <div className="form-grid">
         <Field label="Full name" required error={err('name')}><input className={`input ${err('name') ? 'invalid' : ''}`} value={f.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Amelia Hughes" /></Field>
-        <Field label="Mobile / phone (UK)" required error={err('phone')} hint={phoneNorm ? `Stored as ${phoneNorm}` : undefined}><input className={`input ${err('phone') ? 'invalid' : ''}`} value={f.phone} onChange={(e) => set('phone', e.target.value)} placeholder="07700 900123" inputMode="tel" /></Field>
+        <Field label="Mobile / phone (IE)" required error={err('phone')} hint={phoneNorm ? `Stored as ${phoneNorm}` : undefined}><input className={`input ${err('phone') ? 'invalid' : ''}`} value={f.phone} onChange={(e) => set('phone', e.target.value)} placeholder="087 123 4567" inputMode="tel" /></Field>
         <Field label="Email" required error={err('email')}><input className={`input ${err('email') ? 'invalid' : ''}`} value={f.email} onChange={(e) => set('email', e.target.value)} placeholder="name@example.co.uk" type="email" /></Field>
         <Field label="City"><input className="input" value={f.city} onChange={(e) => set('city', e.target.value)} placeholder="e.g. Manchester" /></Field>
         <Field label="Customer type"><select className="select" value={f.customerType} onChange={(e) => set('customerType', e.target.value as CustomerType)}>{CUSTOMER_TYPES.map((t) => <option key={t}>{t}</option>)}</select></Field>
@@ -207,7 +206,7 @@ export function LeadFormModal({ open, onClose, lead, onSaved }: { open: boolean;
           {suppressed && <div className="banner warn" style={{ marginBottom: 12 }}><ShieldAlert />This number is on the do-not-call suppression list. The lead will be saved as “Do not call” and excluded from all calling.</div>}
           <label className="row" style={{ alignItems: 'flex-start', cursor: 'pointer' }}>
             <input type="checkbox" className="checkbox" style={{ marginTop: 3 }} checked={f.consent} onChange={(e) => set('consent', e.target.checked)} />
-            <span className="small"><span className="medium" style={{ color: 'var(--ink)' }}>Customer has given marketing consent for voice contact</span><br /><span className="muted">Consent is recorded with timestamp and source for PECR / UK GDPR audit.</span></span>
+            <span className="small"><span className="medium" style={{ color: 'var(--ink)' }}>Customer has given marketing consent for voice contact</span><br /><span className="muted">Consent is recorded with timestamp and source for ePrivacy / GDPR audit.</span></span>
           </label>
           {err('consent') && <div className="field-error mt-4">{err('consent')}</div>}
         </div>

@@ -117,7 +117,7 @@ function ScheduleModal({ saved, onClose, onCreate }: { saved: SavedReport[]; onC
         <div className="form-grid">
           {frequency === 'Weekly' && <Field label="Day of week"><select className="select" value={day} onChange={(e) => setDay(e.target.value)}>{WEEKDAYS.map((d) => <option key={d}>{d}</option>)}</select></Field>}
           {frequency === 'Monthly' && <Field label="Day of month" error={touched && dayErr}><input className={`input ${touched && dayErr ? 'invalid' : ''}`} type="number" min={1} max={28} value={monthDay} onChange={(e) => setMonthDay(e.target.value)} /></Field>}
-          <Field label="Time (Europe/London)" error={touched && timeErr}><input className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} /></Field>
+          <Field label="Time (Europe/Dublin)" error={touched && timeErr}><input className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} /></Field>
         </div>
         <Field label="Recipients" required hint="Separate multiple emails with commas." error={touched && recipErr}>
           <textarea className={`textarea ${touched && recipErr ? 'invalid' : ''}`} rows={2} value={recipients} onChange={(e) => setRecipients(e.target.value)} placeholder="name@vodafone.co.uk, team@vodafone.co.uk" />

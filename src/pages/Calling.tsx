@@ -7,13 +7,13 @@ import { useApp, STAGES, type LiveCall } from '../store/store';
 import {
   Avatar, Badge, Button, Card, Drawer, EmptyState, Field, KpiCard, Progress, SimBadge, StatusBadge, Transcript, useConfirm, CHART,
 } from '../components/ui';
-import { fmtDur, fmtGBP, fmtInt, fmtPct, fmtRelative, fmtTime } from '../lib/format';
+import { fmtDur, fmtEUR, fmtInt, fmtPct, fmtRelative, fmtTime } from '../lib/format';
 import type { CallOutcome, Campaign, Suppression } from '../data/types';
 import { EditCampaignModal, daysRange, isToday, pctOf, useCampaignActions, ModulePage } from './campaigns/shared';
 
 const QUEUE_STATUSES = ['Queued', 'New', 'Contacted', 'Callback requested'];
 const END_OUTCOMES: CallOutcome[] = ['Qualified', 'Interested', 'Callback requested', 'Transferred to human', 'Not interested', 'Opted out'];
-const SUPP_REASONS: Suppression['reason'][] = ['Customer opt-out', 'TPS registered', 'Complaint', 'Vulnerable customer', 'Legal hold', 'Deceased'];
+const SUPP_REASONS: Suppression['reason'][] = ['Customer opt-out', 'National Directory Database', 'Complaint', 'Vulnerable customer', 'Legal hold', 'Deceased'];
 
 export default function Calling() {
   const app = useApp(); const nav = useNavigate();
@@ -96,7 +96,7 @@ export default function Calling() {
         <KpiCard label="Failed today" icon={<XCircle size={13} />} value={fmtInt(today.failed)} hint={<span>{fmtPct(pctOf(today.failed, today.total))} technical failure rate</span>} onClick={() => nav('/history?outcome=Failed')} />
         <KpiCard label="Available AI agents" icon={<Bot size={13} />} value={`${liveAgents.length}`} hint={<span>{busyAgents.size} handling calls · {app.agents.length - liveAgents.length} offline/testing</span>} onClick={() => nav('/agents')} />
         <KpiCard label="Avg. call duration" icon={<Timer size={13} />} value={fmtDur(today.avg)} hint={<span>connected calls today</span>} />
-        <KpiCard label="Minutes today" icon={<Clock size={13} />} value={fmtInt(today.minutes)} hint={<span>{fmtGBP(today.cost, 2)} estimated spend</span>} />
+        <KpiCard label="Minutes today" icon={<Clock size={13} />} value={fmtInt(today.minutes)} hint={<span>{fmtEUR(today.cost, 2)} estimated spend</span>} />
         <div className="card kpi">
           <div className="kpi-label"><Gauge size={13} />Current capacity</div>
           <div className="kpi-value">{app.live.length}<span className="muted" style={{ fontSize: 16, fontWeight: 500 }}> / {s.maxConcurrent}</span></div>
@@ -442,7 +442,7 @@ function Exclusions() {
   const [touched, setTouched] = useState(false);
   const norm = phone.replace(/\s+/g, ' ').trim();
   const digits = norm.replace(/\D/g, '');
-  const error = !norm ? 'Enter a phone number' : !/^\+?[\d\s]+$/.test(norm) || digits.length < 10 || digits.length > 13 ? 'Enter a valid UK number, e.g. +44 7700 900123' : app.suppressions.some((s) => s.phone.replace(/\D/g, '') === digits) ? 'This number is already suppressed' : '';
+  const error = !norm ? 'Enter a phone number' : !/^\+?[\d\s]+$/.test(norm) || digits.length < 10 || digits.length > 13 ? 'Enter a valid Irish number, e.g. +353 87 123 4567' : app.suppressions.some((s) => s.phone.replace(/\D/g, '') === digits) ? 'This number is already suppressed' : '';
   const matchLead = digits.length >= 10 ? app.leads.find((l) => l.phone.replace(/\D/g, '') === digits) : undefined;
   const add = () => {
     setTouched(true);
@@ -461,7 +461,7 @@ function Exclusions() {
         <div>
           <div className="grid g-3" style={{ gap: 12 }}>
             <Field label="Phone number" required error={touched && error ? error : undefined} hint={matchLead ? `Matches lead ${matchLead.name} (${matchLead.id})` : undefined}>
-              <input className={`input sm ${touched && error ? 'invalid' : ''}`} value={phone} disabled={!can} placeholder="+44 7700 900123" onChange={(e) => setPhone(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
+              <input className={`input sm ${touched && error ? 'invalid' : ''}`} value={phone} disabled={!can} placeholder="+353 87 123 4567" onChange={(e) => setPhone(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
             </Field>
             <Field label="Name (optional)"><input className="input sm" value={name} disabled={!can} onChange={(e) => setName(e.target.value)} placeholder={matchLead?.name ?? 'Customer name'} /></Field>
             <Field label="Reason"><select className="select sm" value={reason} disabled={!can} onChange={(e) => setReason(e.target.value as Suppression['reason'])}>{SUPP_REASONS.map((r) => <option key={r}>{r}</option>)}</select></Field>

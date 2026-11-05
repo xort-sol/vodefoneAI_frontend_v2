@@ -8,7 +8,7 @@ import { useApp, STAGES } from '../store/store';
 import {
   Avatar, Badge, Button, Card, ChartTip, CHART, DataTable, EmptyState, KpiCard, KV, Legend, PageHeader, Progress, ScoreBar, Segmented, SimBadge, StatusBadge, Tabs, type Column,
 } from '../components/ui';
-import { fmtDate, fmtDateShort, fmtDateTime, fmtDur, fmtGBP, fmtInt, fmtPct, fmtRelative } from '../lib/format';
+import { fmtDate, fmtDateShort, fmtDateTime, fmtDur, fmtEUR, fmtInt, fmtPct, fmtRelative } from '../lib/format';
 import { DAY, NOW, startOfDay } from '../data/seed';
 import type { Call } from '../data/types';
 import { EditCampaignModal, campaignHistory, daysRange, getCampaignExtras, isToday, pctOf, spendOf, useCampaignActions, ModulePage } from './campaigns/shared';
@@ -107,7 +107,7 @@ export default function CampaignDetail() {
     { key: 'dur', header: 'Duration', align: 'right', sort: (x) => x.duration, render: (x) => <span className="mono">{fmtDur(x.duration)}</span> },
     { key: 'score', header: 'Score', sort: (x) => x.score, render: (x) => <ScoreBar value={x.score} /> },
     { key: 'sent', header: 'Sentiment', render: (x) => <StatusBadge status={x.sentiment} dot={false} /> },
-    { key: 'cost', header: 'Cost', align: 'right', sort: (x) => x.cost, render: (x) => <span className="mono">{fmtGBP(x.cost, 2)}</span> },
+    { key: 'cost', header: 'Cost', align: 'right', sort: (x) => x.cost, render: (x) => <span className="mono">{fmtEUR(x.cost, 2)}</span> },
   ];
 
   return (
@@ -141,8 +141,8 @@ export default function CampaignDetail() {
           <KpiCard label="Qualified" icon={<BadgeCheck size={13} />} value={fmtInt(c.qualified)} prevLabel={`${fmtPct(pctOf(c.qualified, c.connected))} of connected`} onClick={() => setTab('qualified')} />
           <KpiCard label="Warm leads" icon={<Flame size={13} />} value={fmtInt(c.warm)} prevLabel="awaiting follow-up" />
           <KpiCard label="Avg. call duration" icon={<Clock size={13} />} value={fmtDur(avgDur)} prevLabel="connected calls" />
-          <KpiCard label="Calling minutes" icon={<Timer size={13} />} value={fmtInt(c.minutes)} prevLabel={`${fmtGBP(c.costPerMinute, 3)} per minute`} />
-          <KpiCard label="Estimated spend" icon={<PoundSterling size={13} />} value={fmtGBP(spend, 2)} prevLabel={`projected ${fmtGBP(projected)} at completion`} />
+          <KpiCard label="Calling minutes" icon={<Timer size={13} />} value={fmtInt(c.minutes)} prevLabel={`${fmtEUR(c.costPerMinute, 3)} per minute`} />
+          <KpiCard label="Estimated spend" icon={<PoundSterling size={13} />} value={fmtEUR(spend, 2)} prevLabel={`projected ${fmtEUR(projected)} at completion`} />
         </div>
 
         <div className="grid g-main-side" style={{ marginBottom: 16 }}>
@@ -205,16 +205,16 @@ export default function CampaignDetail() {
           </Card>
           <Card title="Cost analysis" sub="Estimated from calling minutes">
             <KV items={[
-              ['Spend to date', <span className="mono strong">{fmtGBP(spend, 2)}</span>],
-              ['Per call', <span className="mono">{fmtGBP(calls.length ? callCost / calls.length : 0, 3)}</span>],
-              ['Per connected call', <span className="mono">{fmtGBP(c.connected ? spend / c.connected : 0, 2)}</span>],
-              ['Per qualified lead', <span className="mono">{fmtGBP(c.qualified ? spend / c.qualified : 0, 2)}</span>],
-              ['Rate', <span className="mono">{fmtGBP(c.costPerMinute, 3)} / min</span>],
+              ['Spend to date', <span className="mono strong">{fmtEUR(spend, 2)}</span>],
+              ['Per call', <span className="mono">{fmtEUR(calls.length ? callCost / calls.length : 0, 3)}</span>],
+              ['Per connected call', <span className="mono">{fmtEUR(c.connected ? spend / c.connected : 0, 2)}</span>],
+              ['Per qualified lead', <span className="mono">{fmtEUR(c.qualified ? spend / c.qualified : 0, 2)}</span>],
+              ['Rate', <span className="mono">{fmtEUR(c.costPerMinute, 3)} / min</span>],
             ]} />
             <div className="divider" />
-            <div className="row between small"><span className="muted">Projected at completion</span><span className="mono strong">{fmtGBP(projected)}</span></div>
+            <div className="row between small"><span className="muted">Projected at completion</span><span className="mono strong">{fmtEUR(projected)}</span></div>
             <div className="mt-8"><Progress value={pctOf(spend, projected)} color={CHART.orange} /></div>
-            <div className="xs muted mt-4">{fmtInt(remaining)} leads remaining × {fmtGBP(perLead, 2)} avg per lead</div>
+            <div className="xs muted mt-4">{fmtInt(remaining)} leads remaining × {fmtEUR(perLead, 2)} avg per lead</div>
           </Card>
         </div>
 
@@ -295,7 +295,7 @@ export default function CampaignDetail() {
           </Card>
           <Card title="Product & offer" actions={<Button size="xs" variant="ghost" iconRight={<ArrowRight size={12} />} onClick={() => nav('/products')}>Catalogue</Button>}>
             {product && <KV items={[
-              ['Product', <span className="medium">{product.name}</span>], ['Price', `${fmtGBP(product.monthlyPrice)}/mo · ${product.contractMonths} months${product.upfront ? ` · ${fmtGBP(product.upfront)} upfront` : ''}`],
+              ['Product', <span className="medium">{product.name}</span>], ['Price', `${fmtEUR(product.monthlyPrice)}/mo · ${product.contractMonths} months${product.upfront ? ` · ${fmtEUR(product.upfront)} upfront` : ''}`],
               ['Approval', product.approved ? <Badge tone="green" dot>Approved</Badge> : <Badge tone="red" dot>Not approved</Badge>],
               ['Offer', offer ? <span>{offer.name} <span className="mono muted">{offer.code}</span> <StatusBadge status={offer.status} /></span> : 'Standard pricing'],
               ...(offer ? [['Discount', offer.discount] as [ReactNode, ReactNode]] : []),

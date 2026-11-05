@@ -38,47 +38,49 @@ const daysAhead = (n: number, h = 10, m = 0) => daysAgo(-n, h, m);
 // ---------- people ----------
 const FIRST = ['Oliver', 'Amelia', 'George', 'Isla', 'Harry', 'Ava', 'Noah', 'Mia', 'Jack', 'Sophia', 'Leo', 'Grace', 'Arthur', 'Lily', 'Muhammad', 'Freya', 'Oscar', 'Emily', 'Charlie', 'Ella', 'Henry', 'Poppy', 'Theo', 'Florence', 'Jacob', 'Evie', 'Alfie', 'Rosie', 'Thomas', 'Willow', 'Aisha', 'Priya', 'Rohan', 'Zara', 'Daniel', 'Hannah', 'Samuel', 'Chloe', 'Ethan', 'Lucy', 'Callum', 'Megan', 'Fatima', 'Kwame', 'Siobhan', 'Ewan', 'Niamh', 'Rhys', 'Bethan', 'Imran'];
 const LAST = ['Smith', 'Jones', 'Taylor', 'Brown', 'Williams', 'Wilson', 'Johnson', 'Davies', 'Patel', 'Robinson', 'Wright', 'Thompson', 'Evans', 'Walker', 'White', 'Roberts', 'Green', 'Hall', 'Thomas', 'Clarke', 'Jackson', 'Wood', 'Harris', 'Edwards', 'Turner', 'Martin', 'Cooper', 'Hill', 'Ward', 'Hughes', 'Khan', 'Ali', 'Begum', 'Murphy', "O'Brien", 'Campbell', 'Kelly', 'Morgan', 'Reid', 'Shah', 'Okafor', 'Mensah', 'Nowak', 'Kowalski', 'Fraser', 'MacDonald', 'Lewis', 'Price', 'Bennett', 'Chen'];
-const CITIES = ['London', 'Manchester', 'Birmingham', 'Leeds', 'Glasgow', 'Bristol', 'Liverpool', 'Edinburgh', 'Cardiff', 'Newcastle', 'Sheffield', 'Nottingham', 'Leicester', 'Belfast', 'Southampton', 'Reading', 'Newbury'];
+const CITIES = ['Dublin', 'Cork', 'Galway', 'Limerick', 'Waterford', 'Kilkenny', 'Drogheda', 'Dundalk', 'Swords', 'Navan', 'Athlone', 'Sligo', 'Tralee', 'Ennis', 'Letterkenny', 'Carlow', 'Wexford'];
 const COMPANIES = ['Brightwell Dental', 'Hartley & Co Accountants', 'Northgate Logistics', 'Pennine Joinery', 'Cobalt Studio', 'Greenleaf Florists', 'Atlas Physio', 'Riverside Vets', 'Kestrel Engineering', 'Maple Lettings', 'Orbit Coffee', 'Harbour Legal'];
 export const initialsOf = (n: string) => n.split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase();
 
 // ---------- products ----------
 export const products: Product[] = [
-  { id: 'p-unl-max', name: 'Unlimited Max 5G', category: 'Mobile', description: 'Unlimited data, calls and texts with the fastest available 5G speeds and EU roaming included.', monthlyPrice: 42, upfront: 0, contractMonths: 24, data: 'Unlimited', benefits: ['Unlimited 5G data', 'EU roaming in 81 destinations', 'Entertainment add-on of choice', 'Secure Net included'], eligibility: 'Existing customers in renewal window or new customers passing credit check.', availability: 'Available', approved: true, lastReviewed: iso(daysAgo(6)) },
-  { id: 'p-unl-lite', name: 'Unlimited Lite', category: 'Mobile', description: 'Unlimited data at 2Mbps — ideal for messaging, music and browsing.', monthlyPrice: 24, upfront: 0, contractMonths: 24, data: 'Unlimited (2Mbps)', benefits: ['Unlimited data', 'Unlimited calls & texts', 'Annual price rise capped'], eligibility: 'All consumer customers.', availability: 'Available', approved: true, lastReviewed: iso(daysAgo(12)) },
-  { id: 'p-sim-100', name: 'SIM Only 100GB', category: 'SIM Only', description: '100GB of 5G data on a flexible 12-month SIM Only plan.', monthlyPrice: 16, upfront: 0, contractMonths: 12, data: '100GB', benefits: ['5G at no extra cost', 'Keep your number', 'Inclusive EU roaming'], eligibility: 'Customers with an unlocked handset.', availability: 'Available', approved: true, lastReviewed: iso(daysAgo(3)) },
-  { id: 'p-sim-30', name: 'SIM Only 30GB', category: 'SIM Only', description: 'Great-value 30GB SIM Only plan on a rolling 30-day contract.', monthlyPrice: 10, upfront: 0, contractMonths: 1, data: '30GB', benefits: ['30-day rolling', 'No credit check', '5G ready'], eligibility: 'All customers.', availability: 'Available', approved: true, lastReviewed: iso(daysAgo(20)) },
-  { id: 'p-fibre-500', name: 'Full Fibre 500', category: 'Fibre', description: 'Average download speeds of 500Mbps with a Pro Wi-Fi hub and Super Wi-Fi guarantee.', monthlyPrice: 35, upfront: 0, contractMonths: 24, data: 'Unlimited', speed: '500Mbps', benefits: ['Pro II Wi-Fi hub', 'Super Wi-Fi guarantee', '4G broadband back-up', 'Free installation'], eligibility: 'Addresses with Full Fibre availability.', availability: 'Available', approved: true, lastReviewed: iso(daysAgo(9)) },
-  { id: 'p-fibre-900', name: 'Full Fibre 900', category: 'Fibre', description: 'Gigabit-class speeds for busy households, gaming and 4K streaming.', monthlyPrice: 45, upfront: 0, contractMonths: 24, data: 'Unlimited', speed: '910Mbps', benefits: ['Wi-Fi 6E hub', 'Whole-home Wi-Fi extenders', 'Static IP option'], eligibility: 'Addresses with Full Fibre availability.', availability: 'Limited', approved: true, lastReviewed: iso(daysAgo(15)) },
-  { id: 'p-bb-74', name: 'Superfast Broadband 74', category: 'Broadband', description: 'Reliable fibre-to-the-cabinet broadband with average speeds of 67Mbps.', monthlyPrice: 26, upfront: 0, contractMonths: 24, data: 'Unlimited', speed: '67Mbps', benefits: ['Ultra Hub included', 'Price guarantee', 'Pairs with mobile for discount'], eligibility: 'All serviceable UK addresses.', availability: 'Available', approved: true, lastReviewed: iso(daysAgo(30)) },
-  { id: 'p-biz-unl', name: 'Business Unlimited', category: 'Business Mobile', description: 'Unlimited 5G data per user with business-grade support and device management.', monthlyPrice: 28, upfront: 0, contractMonths: 24, data: 'Unlimited', benefits: ['Dedicated account manager (10+ lines)', 'Device management', 'Next-business-day replacement', 'Shared data pools'], eligibility: 'Registered UK businesses; prices exclude VAT.', availability: 'Available', approved: true, lastReviewed: iso(daysAgo(4)) },
-  { id: 'p-biz-fibre', name: 'Business Fibre 900', category: 'Business Broadband', description: 'Business Full Fibre with static IP, 4G back-up and 24/7 UK support.', monthlyPrice: 49, upfront: 0, contractMonths: 24, data: 'Unlimited', speed: '900Mbps', benefits: ['Static IP', '4G back-up', 'Fix-time guarantee', '24/7 support'], eligibility: 'Registered UK businesses; prices exclude VAT.', availability: 'Available', approved: true, lastReviewed: iso(daysAgo(8)) },
-  { id: 'p-dev-upg', name: 'Device Upgrade — Flagship', category: 'Device', description: 'Early upgrade to a latest-generation flagship handset with trade-in credit.', monthlyPrice: 54, upfront: 29, contractMonths: 36, data: 'Unlimited', benefits: ['Trade-in up to £400', 'Spread device cost over 36 months', 'Upgrade anytime with Evo'], eligibility: 'Customers 18+ months into contract.', availability: 'Available', approved: false, lastReviewed: iso(daysAgo(41)) },
+  { id: 'p-sim-unl', name: 'RED Business Unlimited Sim Only', category: 'SIM Only', description: 'Unlimited data at the fastest speed available, with unlimited any-network calls and texts including EU.', monthlyPrice: 25, upfront: 0, contractMonths: 12, data: 'Unlimited', benefits: ['250 international minutes and texts', '5G ready', '€25/month for the first 6 months, then €35/month'], eligibility: 'Registered Irish businesses; prices exclude VAT. Price rises €2.03/month each April.', availability: 'Available', approved: true, lastReviewed: iso(daysAgo(3)) },
+  { id: 'p-biz-lite', name: 'RED Business Lite', category: 'Business Mobile', description: 'Unlimited data at the fastest speed available with a phone of your choice.', monthlyPrice: 45, upfront: 0, contractMonths: 24, data: 'Unlimited', benefits: ['Unlimited any-network calls and texts', '100 international minutes and texts', 'Choose a phone'], eligibility: 'Registered Irish businesses; prices exclude VAT. Price rises €2.85/month each April.', availability: 'Available', approved: true, lastReviewed: iso(daysAgo(12)) },
+  { id: 'p-biz-unl', name: 'RED Business Unlimited', category: 'Business Mobile', description: 'Unlimited data at the fastest speed available with a phone of your choice and more international allowance.', monthlyPrice: 55, upfront: 0, contractMonths: 24, data: 'Unlimited', benefits: ['Unlimited any-network calls and texts', '500 international minutes and texts', 'Choose a phone'], eligibility: 'Registered Irish businesses; prices exclude VAT. Price rises €2.85/month each April.', availability: 'Available', approved: true, lastReviewed: iso(daysAgo(4)) },
+  { id: 'p-biz-max', name: 'RED Business Unlimited Max', category: 'Business Mobile', description: 'Unlimited data, calls and texts including international, with Smart Working Tools: Conferencing.', monthlyPrice: 80, upfront: 0, contractMonths: 24, data: 'Unlimited', benefits: ['Unlimited international calls and texts', 'Smart Working Tools: Conferencing', 'Choose a phone'], eligibility: 'Registered Irish businesses; prices exclude VAT. Price rises €2.85/month each April.', availability: 'Available', approved: true, lastReviewed: iso(daysAgo(6)) },
+  { id: 'p-bb-500', name: 'Business Broadband up to 500 Mbps', category: 'Business Broadband', description: 'Business broadband for a small business, with a WiFi 5 modem and Super WiFi.', monthlyPrice: 40, upfront: 0, contractMonths: 24, data: 'Unlimited', speed: '500Mbps', benefits: ['Super WiFi', 'Intelligent WiFi', 'Save €10/month for the first 12 months'], eligibility: 'Serviceable Irish business addresses. Free installation depends on location.', availability: 'Available', approved: true, lastReviewed: iso(daysAgo(9)) },
+  { id: 'p-bb-1g', name: 'Business Broadband up to 1 Gbps', category: 'Business Broadband', description: 'Best value business broadband for a medium-sized business, with a WiFi 7 modem.', monthlyPrice: 50, upfront: 0, contractMonths: 24, data: 'Unlimited', speed: '1Gbps', benefits: ['Super WiFi', 'Always connected', 'Intelligent WiFi'], eligibility: 'Serviceable Irish business addresses. Free installation depends on location.', availability: 'Available', approved: true, lastReviewed: iso(daysAgo(8)) },
+  { id: 'p-bb-2g', name: 'Business Broadband up to 2 Gbps', category: 'Business Broadband', description: 'Ultimate speed for a data-intensive business, with a WiFi 7 modem.', monthlyPrice: 65, upfront: 0, contractMonths: 24, data: 'Unlimited', speed: '2Gbps', benefits: ['Super WiFi', 'Always connected', 'Intelligent WiFi'], eligibility: 'Serviceable Irish business addresses. Free installation depends on location.', availability: 'Limited', approved: true, lastReviewed: iso(daysAgo(15)) },
+  { id: 'p-mbb-4g', name: '4G Unlimited Mobile Broadband', category: 'Broadband', description: 'Unlimited data on the fastest 4G speeds, with free delivery in ROI.', monthlyPrice: 24.39, upfront: 0, contractMonths: 12, data: 'Unlimited', benefits: ['Free delivery in ROI', '€24.39/month for the first 6 months, then €32.52/month'], eligibility: 'Domestic use only. Price rises €2.03/month each April.', availability: 'Available', approved: true, lastReviewed: iso(daysAgo(30)) },
+  { id: 'p-mbb-5g', name: '5G Unlimited Mobile Broadband', category: 'Broadband', description: 'Unlimited data on superfast 5G/4G speeds, with free delivery in ROI.', monthlyPrice: 32.52, upfront: 0, contractMonths: 12, data: 'Unlimited', benefits: ['Free delivery in ROI', '€32.52/month for the first 6 months, then €36.59/month'], eligibility: 'Domestic use only. Price rises €2.03/month each April.', availability: 'Available', approved: true, lastReviewed: iso(daysAgo(20)) },
+  { id: 'p-mbb-30d', name: '30 Day Mobile Broadband Package', category: 'Broadband', description: '300GB of data a month on the fastest 4G speeds, on a 30-day rolling contract.', monthlyPrice: 28.46, upfront: 0, contractMonths: 1, data: '300GB', benefits: ['30-day rolling, cancel anytime', 'Free delivery in ROI'], eligibility: 'Price rises €2.03/month each April.', availability: 'Available', approved: true, lastReviewed: iso(daysAgo(5)) },
+  { id: 'p-dev-iphone', name: 'Apple iPhone 17', category: 'Device', description: 'Latest iPhone from free upfront with a business mobile plan. Switch and save up to €300.', monthlyPrice: 0, upfront: 0, contractMonths: 24, data: 'Per plan', benefits: ['Switch & save up to €300', 'Bundled plan chosen on the call'], eligibility: 'Business customers on an eligible mobile plan.', availability: 'Available', approved: false, lastReviewed: iso(daysAgo(41)) },
+  { id: 'p-dev-s25', name: 'Samsung S25', category: 'Device', description: 'Samsung S25 from free upfront with a business mobile plan. Switch and save up to €150.', monthlyPrice: 0, upfront: 0, contractMonths: 24, data: 'Per plan', benefits: ['Switch & save up to €150', 'Bundled plan chosen on the call'], eligibility: 'Business customers on an eligible mobile plan.', availability: 'Available', approved: true, lastReviewed: iso(daysAgo(10)) },
 ];
-const PRODUCT_W: [string, number][] = [['p-unl-max', 18], ['p-unl-lite', 8], ['p-sim-100', 16], ['p-sim-30', 6], ['p-fibre-500', 16], ['p-fibre-900', 6], ['p-bb-74', 5], ['p-biz-unl', 12], ['p-biz-fibre', 8], ['p-dev-upg', 9]];
+const PRODUCT_W: [string, number][] = [['p-biz-max', 14], ['p-biz-lite', 12], ['p-biz-unl', 16], ['p-sim-unl', 16], ['p-bb-500', 12], ['p-bb-1g', 8], ['p-bb-2g', 5], ['p-mbb-4g', 4], ['p-mbb-5g', 4], ['p-mbb-30d', 3], ['p-dev-iphone', 9], ['p-dev-s25', 4]];
 
 export const offers: Offer[] = [
-  { id: 'o-1', name: 'Winter Switch — 6 months half price', productIds: ['p-fibre-500', 'p-fibre-900'], discount: '50% for 6 months', description: 'New and recontracting broadband customers get half-price line rental for the first six months.', startDate: iso(daysAgo(20)), endDate: iso(daysAhead(40)), status: 'Active', code: 'WINTER50' },
-  { id: 'o-2', name: 'Together Discount', productIds: ['p-unl-max', 'p-unl-lite', 'p-fibre-500', 'p-bb-74'], discount: '£5/month off mobile', description: 'Customers with mobile and broadband save £5 per month on each mobile plan.', startDate: iso(daysAgo(200)), endDate: iso(daysAhead(160)), status: 'Active', code: 'TOGETHER5' },
+  { id: 'o-1', name: 'Winter Switch — €10 off for 12 months', productIds: ['p-bb-500', 'p-bb-1g'], discount: '€10/month off for 12 months', description: 'New and recontracting broadband customers save €10 per month for the first twelve months.', startDate: iso(daysAgo(20)), endDate: iso(daysAhead(40)), status: 'Active', code: 'WINTER50' },
+  { id: 'o-2', name: 'Together Discount', productIds: ['p-biz-max', 'p-biz-lite', 'p-bb-500', 'p-mbb-5g'], discount: '€5/month off mobile', description: 'Customers with mobile and broadband save €5 per month on each mobile plan.', startDate: iso(daysAgo(200)), endDate: iso(daysAhead(160)), status: 'Active', code: 'TOGETHER5' },
   { id: 'o-3', name: 'Business Starter — 3 months free', productIds: ['p-biz-unl'], discount: '3 months free on additional lines', description: 'Businesses adding 3+ lines get the first three months free on additional lines.', startDate: iso(daysAgo(10)), endDate: iso(daysAhead(80)), status: 'Active', code: 'BIZ3FREE' },
-  { id: 'o-4', name: 'Black Friday SIM 100GB', productIds: ['p-sim-100'], discount: '£12/month', description: 'Limited-time price on 100GB SIM Only.', startDate: iso(daysAhead(16)), endDate: iso(daysAhead(28)), status: 'Scheduled', code: 'BF100' },
-  { id: 'o-5', name: 'Autumn Upgrade Credit', productIds: ['p-dev-upg'], discount: '£100 extra trade-in', description: 'Additional trade-in credit on eligible devices.', startDate: iso(daysAgo(70)), endDate: iso(daysAgo(2)), status: 'Expired', code: 'AUTUMN100' },
-  { id: 'o-6', name: 'Fibre Pro Hub upgrade', productIds: ['p-fibre-900'], discount: 'Free Wi-Fi 6E extender', description: 'Draft promotion pending pricing approval.', startDate: iso(daysAhead(30)), endDate: iso(daysAhead(90)), status: 'Draft', code: 'PROHUB' },
+  { id: 'o-4', name: 'Black Friday SIM Only', productIds: ['p-sim-unl'], discount: '€20/month', description: 'Limited-time price on RED Business Unlimited Sim Only.', startDate: iso(daysAhead(16)), endDate: iso(daysAhead(28)), status: 'Scheduled', code: 'BF100' },
+  { id: 'o-5', name: 'Autumn Upgrade Credit', productIds: ['p-dev-iphone'], discount: '€100 extra trade-in', description: 'Additional trade-in credit on eligible devices.', startDate: iso(daysAgo(70)), endDate: iso(daysAgo(2)), status: 'Expired', code: 'AUTUMN100' },
+  { id: 'o-6', name: 'Broadband WiFi 7 upgrade', productIds: ['p-bb-1g'], discount: 'Free WiFi extender', description: 'Draft promotion pending pricing approval.', startDate: iso(daysAhead(30)), endDate: iso(daysAhead(90)), status: 'Draft', code: 'PROHUB' },
 ];
 
 // ---------- team ----------
 const TEAM_RAW: [string, TeamMember['role'], TeamMember['team'], string[]][] = [
   ['Sarah Mitchell', 'Super Admin', 'Operations', []],
   ['James Okonkwo', 'Administrator', 'Operations', []],
-  ['Rachel Adeyemi', 'Sales Manager', 'Consumer Sales', ['p-unl-max', 'p-sim-100']],
-  ['Tom Hargreaves', 'Sales Manager', 'Business Sales', ['p-biz-unl', 'p-biz-fibre']],
-  ['Priya Raman', 'Sales Representative', 'Consumer Sales', ['p-unl-max', 'p-dev-upg', 'p-unl-lite']],
-  ['Ben Carter', 'Sales Representative', 'Consumer Sales', ['p-fibre-500', 'p-fibre-900', 'p-bb-74']],
-  ['Hannah Lewis', 'Sales Representative', 'Consumer Sales', ['p-sim-100', 'p-sim-30', 'p-unl-lite']],
+  ['Rachel Adeyemi', 'Sales Manager', 'Consumer Sales', ['p-biz-max', 'p-sim-unl']],
+  ['Tom Hargreaves', 'Sales Manager', 'Business Sales', ['p-biz-unl', 'p-bb-2g']],
+  ['Priya Raman', 'Sales Representative', 'Consumer Sales', ['p-biz-max', 'p-dev-iphone', 'p-biz-lite']],
+  ['Ben Carter', 'Sales Representative', 'Consumer Sales', ['p-bb-500', 'p-bb-1g', 'p-mbb-5g']],
+  ['Hannah Lewis', 'Sales Representative', 'Consumer Sales', ['p-sim-unl', 'p-mbb-30d', 'p-biz-lite']],
   ['Marcus Bell', 'Sales Representative', 'Business Sales', ['p-biz-unl']],
-  ['Aisha Rahman', 'Sales Representative', 'Business Sales', ['p-biz-fibre', 'p-biz-unl']],
-  ['Daniel Kowalski', 'Sales Representative', 'Retention', ['p-unl-max', 'p-dev-upg']],
-  ['Chloe Davies', 'Sales Representative', 'Retention', ['p-fibre-500', 'p-sim-100']],
+  ['Aisha Rahman', 'Sales Representative', 'Business Sales', ['p-bb-2g', 'p-biz-unl']],
+  ['Daniel Kowalski', 'Sales Representative', 'Retention', ['p-biz-max', 'p-dev-iphone']],
+  ['Chloe Davies', 'Sales Representative', 'Retention', ['p-bb-500', 'p-sim-unl']],
   ['Owen Price', 'Supervisor', 'Operations', []],
   ['Leila Haddad', 'Supervisor', 'Consumer Sales', []],
   ['Nina Patel', 'Analyst', 'Insights', []],
@@ -110,8 +112,8 @@ export const agents: Agent[] = AGENT_RAW.map(([name, voice, language, accent, pe
   id: `ag-${pad(i + 1, 2)}`, name, initials: name.slice(0, 2).toUpperCase(), color, voice, language, accent, personality, status,
   version: (ri(0, 9), ri(0, 9), ri(0, 9), 'v3.2.0'),
   totalCalls: 0, avgDuration: 0, qualificationRate: 0, sentimentScore: 0, escalationRate: 0,
-  instructions: `You are ${name}, a Vodafone UK sales assistant calling existing customers who are eligible for new offers. Always identify yourself as an AI assistant calling on behalf of Vodafone at the start of the call and state that the call is recorded for quality and training. Confirm you are speaking to the account holder before discussing account details. Only quote approved prices and terms from the product knowledge base. If the customer asks to stop, opt out or speak to a person, comply immediately. Never pressure the customer; aim to understand needs, recommend the best-fit plan and book a follow-up with a human specialist when the customer is interested.`,
-  greeting: `Hi, is that {first_name}? This is ${name}, an AI assistant calling on behalf of Vodafone. This call is recorded for quality and training. Have you got two minutes to hear about an offer you're eligible for?`,
+  instructions: `You are ${name}, a Vodafone Ireland sales assistant calling existing customers who are eligible for new offers. Always identify yourself as an AI assistant calling on behalf of Vodafone at the start of the call. Confirm you are speaking to the account holder before discussing account details. Only quote approved prices and terms from the product knowledge base. If the customer asks to stop, opt out or speak to a person, comply immediately. Never pressure the customer; aim to understand needs, recommend the best-fit plan and book a follow-up with a human specialist when the customer is interested.`,
+  greeting: `Hi, is that {first_name}? This is ${name}, an AI assistant calling on behalf of Vodafone. Have you got two minutes to hear about an offer you're eligible for?`,
   speakingRate: +(0.9 + rand() * 0.2).toFixed(2), temperature: +(0.3 + rand() * 0.3).toFixed(2),
   updatedAt: iso(daysAgo(ri(1, 25))),
   versions: [
@@ -139,14 +141,14 @@ const AGENT_W: [string, number][] = [['ag-01', 30], ['ag-02', 26], ['ag-03', 20]
 
 // ---------- campaigns ----------
 const CAMP_RAW: [string, string, string | null, string, Campaign['status'], number, number, string][] = [
-  ['Unlimited Max Renewal Q4', 'p-unl-max', 'o-2', 'ag-01', 'Active', 84, 50, 'Consumer · in renewal window'],
-  ['Winter Fibre Switch', 'p-fibre-500', 'o-1', 'ag-02', 'Active', 52, 40, 'Consumer · Full Fibre available'],
-  ['SIM Only Value Push', 'p-sim-100', null, 'ag-03', 'Active', 76, 30, 'Consumer · out of contract'],
+  ['RED Unlimited Max Renewal Q4', 'p-biz-max', 'o-2', 'ag-01', 'Active', 84, 50, 'Consumer · in renewal window'],
+  ['Winter Broadband Switch', 'p-bb-500', 'o-1', 'ag-02', 'Active', 52, 40, 'Business · serviceable address'],
+  ['SIM Only Value Push', 'p-sim-unl', null, 'ag-03', 'Active', 76, 30, 'Consumer · out of contract'],
   ['SME Business Unlimited', 'p-biz-unl', 'o-3', 'ag-04', 'Active', 38, 80, 'SME · 2–20 employees'],
-  ['Business Fibre Upgrade', 'p-biz-fibre', null, 'ag-04', 'Paused', 70, 25, 'Business · copper broadband'],
-  ['Flagship Upgrade Autumn', 'p-dev-upg', 'o-5', 'ag-06', 'Completed', 88, -2, 'Consumer · 18+ months tenure'],
-  ['Gigabit Fibre Early Access', 'p-fibre-900', null, 'ag-02', 'Scheduled', -6, 60, 'Consumer · high-usage households'],
-  ['Unlimited Lite Retention', 'p-unl-lite', 'o-2', 'ag-03', 'Draft', -14, 45, 'Consumer · churn risk'],
+  ['Business Broadband Upgrade', 'p-bb-2g', null, 'ag-04', 'Paused', 70, 25, 'Business · legacy broadband'],
+  ['iPhone Upgrade Autumn', 'p-dev-iphone', 'o-5', 'ag-06', 'Completed', 88, -2, 'Consumer · 18+ months tenure'],
+  ['Gigabit Broadband Early Access', 'p-bb-1g', null, 'ag-02', 'Scheduled', -6, 60, 'Consumer · high-usage households'],
+  ['RED Business Lite Retention', 'p-biz-lite', 'o-2', 'ag-03', 'Draft', -14, 45, 'Consumer · churn risk'],
 ];
 export const campaigns: Campaign[] = CAMP_RAW.map(([name, productId, offerId, agentId, status, startAgo, endAhead, segment], i) => ({
   id: `CMP-${pad(1040 + i * 7, 4)}`, name, productId, offerId, agentId, status,
@@ -154,7 +156,7 @@ export const campaigns: Campaign[] = CAMP_RAW.map(([name, productId, offerId, ag
   totalLeads: 0, attempted: 0, connected: 0, warm: 0, qualified: 0, minutes: 0,
   costPerMinute: productId.startsWith('p-biz') ? 0.145 : 0.118,
   segment,
-  schedule: { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', ...(i % 3 === 0 ? ['Sat'] : [])], start: '09:30', end: i % 2 ? '19:30' : '18:00', timezone: 'Europe/London' },
+  schedule: { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', ...(i % 3 === 0 ? ['Sat'] : [])], start: '09:30', end: i % 2 ? '19:30' : '18:00', timezone: 'Europe/Dublin' },
   retry: { maxAttempts: i % 2 ? 3 : 4, intervalHours: i % 2 ? 24 : 48 },
   concurrency: [12, 8, 10, 6, 4, 8, 6, 4][i], dailyCap: [800, 500, 600, 300, 250, 400, 300, 200][i],
   qualification: { minScore: [70, 65, 60, 75, 75, 70, 70, 65][i], requireBudget: i % 2 === 1, requireDecisionMaker: productId.startsWith('p-biz'), requireTimeline: true },
@@ -176,11 +178,11 @@ for (let i = 0; i < LEAD_COUNT; i++) {
   leads.push({
     id: `LD-${pad(48210 + i, 5)}`,
     name,
-    phone: `+44 7${ri(100, 999)} ${ri(100, 999)} ${ri(100, 999)}`,
+    phone: `+3538${ri(3, 9)}${ri(1000000, 9999999)}`,
     email: `${first.toLowerCase()}.${last.toLowerCase().replace(/[^a-z]/g, '')}${ri(1, 99)}@${type === 'Consumer' ? pick(['gmail.com', 'outlook.com', 'yahoo.co.uk', 'icloud.com', 'btinternet.com']) : pick(COMPANIES).toLowerCase().replace(/[^a-z]/g, '') + '.co.uk'}`,
     city: pick(CITIES),
     customerType: type,
-    currentPlan: pick(['Red Entertainment 20GB', 'Unlimited Lite', 'SIM Only 12GB', 'Pay as you go', 'Superfast 2 Broadband', 'Business 10GB', 'Red Extra 50GB', 'Legacy Basics']),
+    currentPlan: pick(['Legacy Business 10GB', 'Pay as you go', 'Legacy Broadband', 'Legacy Basics', 'Business Mobile 20GB', 'Business Mobile 50GB']),
     tenureMonths: ri(3, 140),
     productInterest,
     source: weighted<Lead['source']>([['CRM export', 46], ['Contract renewal', 24], ['Web form', 12], ['Retail store', 8], ['Partner referral', 4], ['CSV import', 6]]),
@@ -320,7 +322,7 @@ for (const l of leads.filter((x) => x.assignedRepId).slice(0, 220)) {
     'Reviewed AI handover. Customer prefers email confirmation before any order.',
     'Left a voicemail introducing myself. Will retry tomorrow morning.',
     'Spoke briefly — wants pricing for two additional lines.',
-    'Confirmed Full Fibre availability at the address.',
+    'Confirmed Business Broadband availability at the address.',
     'Customer asked for a call after 6pm on weekdays.',
   ]) });
 }
@@ -384,11 +386,11 @@ export function getTranscript(call: Call, lead: Lead, agentName: string): Transc
     transcriptCache.set(call.id, lines); return lines;
   }
   say('System', 'Compliance check passed: consent on file, not on suppression list, within permitted calling hours.');
-  say('AI', `Hi, is that ${first}? This is ${agentName}, an AI assistant calling on behalf of Vodafone. Just so you know, this call is recorded for quality and training.`);
+  say('AI', `Hi, is that ${first}? This is ${agentName}, an AI assistant calling on behalf of Vodafone.`);
   say('Customer', 'Yes, speaking. What’s this about?', { sentiment: 'Neutral' });
   say('AI', `Thanks ${first}. Before I go on, could you confirm the first line of your billing address so I know I’m speaking with the account holder?`);
   say('Customer', 'Sure, it’s the one on Station Road.', { sentiment: 'Neutral' });
-  say('AI', `Perfect, thank you. I can see you’ve been with us for ${Math.floor(lead.tenureMonths / 12) || 'less than a'} year${lead.tenureMonths >= 24 ? 's' : ''} on ${lead.currentPlan}. You’re now eligible for ${p.name}${p.category.includes('Business') ? ' at £' + p.monthlyPrice + ' per user per month, excluding VAT' : ' at £' + p.monthlyPrice + ' a month'}. Can I ask how you mostly use your ${p.category.includes('ibre') || p.category.includes('roadband') ? 'broadband at home' : 'phone'}?`, { flag: 'pricing' });
+  say('AI', `Perfect, thank you. I can see you’ve been with us for ${Math.floor(lead.tenureMonths / 12) || 'less than a'} year${lead.tenureMonths >= 24 ? 's' : ''} on ${lead.currentPlan}. You’re now eligible for ${p.name}${p.category.includes('Business') ? ' at €' + p.monthlyPrice + ' per user per month, excluding VAT' : ' at €' + p.monthlyPrice + ' a month'}. Can I ask how you mostly use your ${p.category.includes('ibre') || p.category.includes('roadband') ? 'broadband at home' : 'phone'}?`, { flag: 'pricing' });
   if (call.outcome === 'Callback requested') {
     say('Customer', 'Honestly, now’s not great — I’m about to go into a meeting. Can you call me back?', { sentiment: 'Neutral', flag: 'objection' });
     say('AI', 'Of course. Would tomorrow between 5 and 7pm work for you?');
@@ -405,7 +407,7 @@ export function getTranscript(call: Call, lead: Lead, agentName: string): Transc
   }
   for (const o of call.objections) {
     say('Customer', o === 'Price too high' ? 'It sounds a bit pricier than what I pay now.' : o === 'Still in contract' ? 'Aren’t I still in contract for a few months?' : o === 'Needs to discuss with partner' ? 'I’d need to run it past my partner first.' : `${o}, to be honest.`, { flag: 'objection', sentiment: call.outcome === 'Not interested' ? 'Negative' : 'Neutral' });
-    say('AI', o === 'Price too high' ? `Totally understand. With the Together Discount you could save £5 a month, and you’d be getting ${p.data.toLowerCase()} data. Would that make a difference?` : o === 'Still in contract' ? 'You’re within your upgrade window, so there’s no early-exit charge if you move to this plan now.' : 'That makes sense — I can send everything by email so you have it to hand.');
+    say('AI', o === 'Price too high' ? `Totally understand. With the Together Discount you could save €5 a month, and you’d be getting ${p.data.toLowerCase()} data. Would that make a difference?` : o === 'Still in contract' ? 'You’re within your upgrade window, so there’s no early-exit charge if you move to this plan now.' : 'That makes sense — I can send everything by email so you have it to hand.');
   }
   for (const u of call.unanswered) {
     say('Customer', `Can you tell me the ${u.toLowerCase()}?`, { flag: 'question' });
@@ -469,7 +471,7 @@ export const consents: ConsentRecord[] = leads.slice(0, 400).map((l, i) => ({
 }));
 export const suppressions: Suppression[] = [
   ...leads.filter((l) => l.dnc).map((l, i) => ({ id: `SP-${pad(300 + i, 4)}`, phone: l.phone, name: l.name, reason: 'Customer opt-out' as const, addedAt: l.lastCallAt ?? iso(daysAgo(3)), addedBy: 'AI agent (automatic)' })),
-  ...Array.from({ length: 24 }, (_, i) => ({ id: `SP-${pad(900 + i, 4)}`, phone: `+44 7${ri(100, 999)} ${ri(100, 999)} ${ri(100, 999)}`, name: `${pick(FIRST)} ${pick(LAST)}`, reason: pick(['TPS registered', 'Complaint', 'Vulnerable customer', 'Legal hold', 'Deceased'] as const), addedAt: iso(daysAgo(ri(1, 200))), addedBy: pick(['Owen Price', 'James Okonkwo', 'TPS sync']) })),
+  ...Array.from({ length: 24 }, (_, i) => ({ id: `SP-${pad(900 + i, 4)}`, phone: `+3538${ri(3, 9)}${ri(1000000, 9999999)}`, name: `${pick(FIRST)} ${pick(LAST)}`, reason: pick(['National Directory Database', 'Complaint', 'Vulnerable customer', 'Legal hold', 'Deceased'] as const), addedAt: iso(daysAgo(ri(1, 200))), addedBy: pick(['Owen Price', 'James Okonkwo', 'National Directory Database sync']) })),
 ];
 export const deletionRequests: DeletionRequest[] = Array.from({ length: 9 }, (_, i) => {
   const l = leads[1000 + i * 7];
@@ -477,8 +479,8 @@ export const deletionRequests: DeletionRequest[] = Array.from({ length: 9 }, (_,
   return { id: `DSR-${pad(210 + i, 4)}`, leadId: l.id, name: l.name, requestedAt: iso(at), status: pick(['Received', 'In review', 'Approved', 'Completed', 'Completed'] as const), type: pick(['Erasure', 'Erasure', 'Access', 'Rectification'] as const), dueBy: iso(new Date(at.getTime() + 30 * DAY)) };
 });
 const ACTIONS: [AuditEntry['category'], string, string][] = [
-  ['Auth', 'Signed in', 'Web console (SSO)'], ['Campaign', 'Paused campaign', 'Business Fibre Upgrade'], ['Agent', 'Published agent version', 'Ava v3.2.0'],
-  ['Data', 'Imported leads', 'renewals_nov.csv (412 rows)'], ['Export', 'Exported report', 'Weekly performance (PDF)'], ['Compliance', 'Added suppression', '+44 7*** *** 214'],
+  ['Auth', 'Signed in', 'Web console (SSO)'], ['Campaign', 'Paused campaign', 'Business Broadband Upgrade'], ['Agent', 'Published agent version', 'Ava v3.2.0'],
+  ['Data', 'Imported leads', 'renewals_nov.csv (412 rows)'], ['Export', 'Exported report', 'Weekly performance (PDF)'], ['Compliance', 'Added suppression', '+353 8** *** 214'],
   ['Settings', 'Updated calling hours', 'Mon–Fri 09:30–19:30'], ['Data', 'Viewed recording', 'CL-731402'], ['Auth', 'Failed sign-in attempt', 'unknown device'],
   ['Compliance', 'Approved erasure request', 'DSR-0213'], ['Campaign', 'Launched campaign', 'SME Business Unlimited'], ['Agent', 'Edited objection handling', 'Leo'],
 ];
@@ -491,13 +493,13 @@ export const auditLog: AuditEntry[] = Array.from({ length: 160 }, (_, i) => {
 const hot = leads.filter((l) => l.status === 'Hot').slice(0, 4);
 export const notifications: Notification[] = [
   ...hot.map((l, i) => ({ id: `NT-${i + 1}`, category: 'Leads' as const, priority: 'High' as const, title: 'New hot lead ready for handover', body: `${l.name} scored ${l.score}/100 for ${products.find((p) => p.id === l.productInterest)!.name}.`, at: iso(new Date(NOW.getTime() - (i * 37 + 6) * 60000)), read: i > 1, link: `/qualified?lead=${l.id}` })),
-  { id: 'NT-10', category: 'Capacity', priority: 'High', title: 'Daily calling capacity at 86%', body: 'Unlimited Max Renewal Q4 will reach its daily cap of 800 calls in ~1h at the current rate.', at: iso(new Date(NOW.getTime() - 22 * 60000)), read: false, link: '/calling' },
+  { id: 'NT-10', category: 'Capacity', priority: 'High', title: 'Daily calling capacity at 86%', body: 'RED Unlimited Max Renewal Q4 will reach its daily cap of 800 calls in ~1h at the current rate.', at: iso(new Date(NOW.getTime() - 22 * 60000)), read: false, link: '/calling' },
   { id: 'NT-11', category: 'Agents', priority: 'High', title: 'Agent error rate elevated', body: 'Max returned 4 media-stream errors in the last hour. Agent paused automatically.', at: iso(new Date(NOW.getTime() - 95 * 60000)), read: false, link: '/agents/ag-06' },
-  { id: 'NT-12', category: 'Campaigns', priority: 'Medium', title: 'Campaign completed', body: 'Flagship Upgrade Autumn finished with 100% of eligible leads attempted.', at: iso(daysAgo(1, 18)), read: true, link: `/campaigns/${campaigns[5].id}` },
+  { id: 'NT-12', category: 'Campaigns', priority: 'Medium', title: 'Campaign completed', body: 'iPhone Upgrade Autumn finished with 100% of eligible leads attempted.', at: iso(daysAgo(1, 18)), read: true, link: `/campaigns/${campaigns[5].id}` },
   { id: 'NT-13', category: 'Follow-ups', priority: 'Medium', title: '7 follow-ups overdue', body: 'Several warm leads have passed their follow-up deadline without contact.', at: iso(new Date(NOW.getTime() - 3 * 3600000)), read: false, link: '/workspace' },
   { id: 'NT-14', category: 'Appointments', priority: 'Low', title: 'Appointment confirmed', body: 'Customer confirmed a video consultation for tomorrow at 11:00.', at: iso(new Date(NOW.getTime() - 5 * 3600000)), read: true, link: '/appointments' },
   { id: 'NT-15', category: 'Offers', priority: 'Medium', title: 'Promotion expired', body: 'Autumn Upgrade Credit expired. 1 campaign references it — pitches were updated automatically.', at: iso(daysAgo(2, 0, 5)), read: false, link: '/products' },
-  { id: 'NT-16', category: 'Security', priority: 'High', title: 'Unusual calling activity detected', body: '38 calls to the same number range in 10 minutes on Winter Fibre Switch. Review recommended.', at: iso(new Date(NOW.getTime() - 50 * 60000)), read: false, link: '/compliance' },
-  { id: 'NT-17', category: 'Offers', priority: 'Low', title: 'Product pending approval', body: 'Device Upgrade — Flagship has not been reviewed in 41 days. AI pitching is blocked until approved.', at: iso(daysAgo(1, 9)), read: true, link: '/products' },
+  { id: 'NT-16', category: 'Security', priority: 'High', title: 'Unusual calling activity detected', body: '38 calls to the same number range in 10 minutes on Winter Broadband Switch. Review recommended.', at: iso(new Date(NOW.getTime() - 50 * 60000)), read: false, link: '/compliance' },
+  { id: 'NT-17', category: 'Offers', priority: 'Low', title: 'Product pending approval', body: 'Apple iPhone 17 has not been reviewed in 41 days. AI pitching is blocked until approved.', at: iso(daysAgo(1, 9)), read: true, link: '/products' },
   { id: 'NT-18', category: 'Security', priority: 'Medium', title: 'Failed sign-in attempts', body: '3 failed sign-in attempts from an unrecognised device.', at: iso(daysAgo(1, 7, 40)), read: true, link: '/compliance?tab=audit' },
 ];

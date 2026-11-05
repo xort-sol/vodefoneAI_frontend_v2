@@ -3,7 +3,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { useApp } from '../../store/store';
 import { Card, ChartTip, CHART, Legend } from '../../components/ui';
 import { dailySeries, summarize, type Range } from '../../lib/metrics';
-import { fmtDur, fmtGBP, fmtInt, fmtPct } from '../../lib/format';
+import { fmtDur, fmtEUR, fmtInt, fmtPct } from '../../lib/format';
 import { DAY, NOW, startOfDay, type DayStat } from '../../data/seed';
 import type { Call, CallOutcome } from '../../data/types';
 
@@ -102,13 +102,13 @@ export function CampaignComparison({ ctx, mode = 'calls' }: { ctx: AnalyticsCtx;
     { label: 'Qualified', get: (s) => s.qualified, fmt: fmtInt, better: 'high' },
     { label: 'Qualification rate', get: (s) => s.qualRate, fmt: (v) => fmtPct(v), better: 'high' },
     { label: 'Avg. duration', get: (s) => s.avgDuration, fmt: fmtDur, better: 'high' },
-    { label: 'Spend', get: (s) => s.cost, fmt: (v) => fmtGBP(v, 2), better: 'low' },
+    { label: 'Spend', get: (s) => s.cost, fmt: (v) => fmtEUR(v, 2), better: 'low' },
   ] : [
-    { label: 'Spend', get: (s) => s.cost, fmt: (v) => fmtGBP(v, 2), better: 'low' },
+    { label: 'Spend', get: (s) => s.cost, fmt: (v) => fmtEUR(v, 2), better: 'low' },
     { label: 'Minutes', get: (s) => s.minutes, fmt: fmtInt, better: 'high' },
-    { label: 'Cost per call', get: (s) => s.cpc, fmt: (v) => fmtGBP(v, 3), better: 'low' },
-    { label: 'Cost per connected', get: (s) => (s.connected ? s.cost / s.connected : 0), fmt: (v) => fmtGBP(v, 3), better: 'low' },
-    { label: 'Cost per qualified', get: (s) => s.cpq, fmt: (v) => fmtGBP(v, 2), better: 'low' },
+    { label: 'Cost per call', get: (s) => s.cpc, fmt: (v) => fmtEUR(v, 3), better: 'low' },
+    { label: 'Cost per connected', get: (s) => (s.connected ? s.cost / s.connected : 0), fmt: (v) => fmtEUR(v, 3), better: 'low' },
+    { label: 'Cost per qualified', get: (s) => s.cpq, fmt: (v) => fmtEUR(v, 2), better: 'low' },
   ];
   const chartData = metrics.slice(0, 4).map((m) => {
     const max = Math.max(1e-9, ...stats.map((s) => m.get(s)));

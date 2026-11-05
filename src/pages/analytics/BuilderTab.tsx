@@ -5,7 +5,7 @@ import { useApp } from '../../store/store';
 import { Button, Card, ChartTip, CHART, EmptyState, Field, FilterSelect, Legend, Modal, Segmented, Switch, SERIES, useConfirm } from '../../components/ui';
 import { DateRangePicker, useRangeState } from '../../components/DateRange';
 import { inRange, summarize, type RangeKey } from '../../lib/metrics';
-import { downloadFile, fmtDur, fmtGBP, fmtInt, fmtPct, fmtRelative, toCSV } from '../../lib/format';
+import { downloadFile, fmtDur, fmtEUR, fmtInt, fmtPct, fmtRelative, toCSV } from '../../lib/format';
 import type { Call } from '../../data/types';
 import { AX, bucketLabel, DETAIL_START, useExport, type AnalyticsCtx, type SavedReport } from './common';
 
@@ -15,16 +15,16 @@ const METRICS: { key: string; label: string; kind: Kind; get: (s: ReturnType<typ
   { key: 'connected', label: 'Connected', kind: 'count', get: (s) => s.connected },
   { key: 'qualified', label: 'Qualified', kind: 'count', get: (s) => s.qualified },
   { key: 'minutes', label: 'Minutes', kind: 'count', get: (s) => s.minutes },
-  { key: 'cost', label: 'Spend (£)', kind: 'gbp', get: (s) => +s.cost.toFixed(2) },
+  { key: 'cost', label: 'Spend (€)', kind: 'gbp', get: (s) => +s.cost.toFixed(2) },
   { key: 'connectRate', label: 'Connect rate', kind: 'pct', get: (s) => +s.connectRate.toFixed(1) },
   { key: 'qualRate', label: 'Qualification rate', kind: 'pct', get: (s) => +s.qualRate.toFixed(1) },
   { key: 'avgDuration', label: 'Avg. duration', kind: 'dur', get: (s) => Math.round(s.avgDuration) },
-  { key: 'cpq', label: 'Cost / qualified (£)', kind: 'gbp', get: (s) => (s.qualified ? +(s.cost / s.qualified).toFixed(2) : 0) },
+  { key: 'cpq', label: 'Cost / qualified (€)', kind: 'gbp', get: (s) => (s.qualified ? +(s.cost / s.qualified).toFixed(2) : 0) },
 ];
 const DIMENSIONS = [{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }, { value: 'campaign', label: 'Campaign' }, { value: 'agent', label: 'Agent' }, { value: 'product', label: 'Product' }] as const;
 type Dim = (typeof DIMENSIONS)[number]['value'];
 type ChartType = 'bar' | 'line' | 'area' | 'table';
-const fmtKind = (k: Kind, v: number) => (k === 'pct' ? fmtPct(v) : k === 'gbp' ? fmtGBP(v, 2) : k === 'dur' ? fmtDur(v) : fmtInt(v));
+const fmtKind = (k: Kind, v: number) => (k === 'pct' ? fmtPct(v) : k === 'gbp' ? fmtEUR(v, 2) : k === 'dur' ? fmtDur(v) : fmtInt(v));
 
 export default function BuilderTab({ ctx, saved, setSaved }: { ctx: AnalyticsCtx; saved: SavedReport[]; setSaved: (f: (p: SavedReport[]) => SavedReport[]) => void }) {
   const app = useApp(); const confirm = useConfirm();

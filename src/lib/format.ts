@@ -5,7 +5,7 @@ export const fmtCompact = (n: number) =>
   Math.abs(n) >= 1e6 ? (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M'
     : Math.abs(n) >= 1e4 ? (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'k'
       : fmtInt(n);
-export const fmtGBP = (n: number, dp = 0) => '£' + n.toLocaleString('en-GB', { minimumFractionDigits: dp, maximumFractionDigits: dp });
+export const fmtEUR = (n: number, dp = 0) => '€' + n.toLocaleString('en-IE', { minimumFractionDigits: dp, maximumFractionDigits: dp });
 export const fmtPct = (n: number, dp = 1) => `${n.toFixed(dp)}%`;
 export const fmtDur = (s: number) => { const m = Math.floor(s / 60); const r = Math.round(s % 60); return `${m}:${String(r).padStart(2, '0')}`; };
 export const fmtDurLong = (s: number) => { const m = Math.floor(s / 60); const r = Math.round(s % 60); return m ? `${m}m ${r}s` : `${r}s`; };

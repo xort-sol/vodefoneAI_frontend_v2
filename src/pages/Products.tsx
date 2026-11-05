@@ -7,7 +7,7 @@ import { useApp } from '../store/store';
 import {
   Badge, Button, Card, DataTable, EmptyState, ExportMenu, FilterSelect, Menu, MenuItem, PageHeader, SearchInput, Segmented, StatusBadge, Tabs, useConfirm, type Column,
 } from '../components/ui';
-import { fmtDate, fmtGBP, fmtRelative, toCSV, downloadFile } from '../lib/format';
+import { fmtDate, fmtEUR, fmtRelative, toCSV, downloadFile } from '../lib/format';
 import { NOW, DAY } from '../data/seed';
 import type { Offer, Product } from '../data/types';
 import { CATEGORIES, OfferModal, ProductDrawer, blankProduct, deriveStatus } from './products/forms';
@@ -146,7 +146,7 @@ export default function Products() {
   const pColumns: Column<Product>[] = [
     { key: 'name', header: 'Product', sort: (p) => p.name, render: (p) => <div style={{ minWidth: 180 }}><div className="cell-primary">{p.name}</div><div className="cell-sub mono">{p.id}</div></div> },
     { key: 'cat', header: 'Category', sort: (p) => p.category, render: (p) => <Badge tone="outline">{p.category}</Badge> },
-    { key: 'price', header: 'Monthly', align: 'right', sort: (p) => p.monthlyPrice, render: (p) => <span className="mono strong">{fmtGBP(p.monthlyPrice, p.monthlyPrice % 1 ? 2 : 0)}</span> },
+    { key: 'price', header: 'Monthly', align: 'right', sort: (p) => p.monthlyPrice, render: (p) => <span className="mono strong">{fmtEUR(p.monthlyPrice, p.monthlyPrice % 1 ? 2 : 0)}</span> },
     { key: 'contract', header: 'Contract', sort: (p) => p.contractMonths, render: (p) => <span className="small">{contract(p.contractMonths)}</span> },
     { key: 'data', header: 'Data / speed', render: (p) => <span className="small">{p.data}{p.speed ? ` · ${p.speed}` : ''}</span> },
     { key: 'promos', header: 'Promotions', sort: (p) => offersFor(p.id).length, render: (p) => { const os = offersFor(p.id).filter((o) => o.status !== 'Expired'); return os.length ? <span className="small">{os.length} linked</span> : <span className="small muted">—</span>; } },
@@ -253,7 +253,7 @@ export default function Products() {
                         <div style={{ minWidth: 0 }}><div className="xs muted">{p.category}</div><div className="cell-primary" style={{ fontSize: 14.5 }}>{p.name}</div></div>
                         <span className="row gap-4">{approvalBadge(p)}{productMenu(p)}</span>
                       </div>
-                      <div className="row mt-8" style={{ alignItems: 'baseline', gap: 4 }}><span className="strong" style={{ fontSize: 22, letterSpacing: '-0.02em' }}>{fmtGBP(p.monthlyPrice, p.monthlyPrice % 1 ? 2 : 0)}</span><span className="small muted">/month · {contract(p.contractMonths)}{p.upfront ? ` · £${p.upfront} upfront` : ''}</span></div>
+                      <div className="row mt-8" style={{ alignItems: 'baseline', gap: 4 }}><span className="strong" style={{ fontSize: 22, letterSpacing: '-0.02em' }}>{fmtEUR(p.monthlyPrice, p.monthlyPrice % 1 ? 2 : 0)}</span><span className="small muted">/month · {contract(p.contractMonths)}{p.upfront ? ` · €${p.upfront} upfront` : ''}</span></div>
                       <div className="small subtle mt-8" style={{ minHeight: 40 }}>{p.description}</div>
                       <div className="row-wrap mt-8"><span className="tag">{p.data} data</span>{p.speed && <span className="tag">{p.speed}</span>}<StatusBadge status={p.availability} /></div>
                       <ul className="small subtle" style={{ margin: '10px 0 0', paddingLeft: 16 }}>{p.benefits.slice(0, 3).map((b) => <li key={b}>{b}</li>)}{p.benefits.length > 3 && <li className="muted">+{p.benefits.length - 3} more</li>}</ul>
@@ -290,7 +290,7 @@ export default function Products() {
                 <div key={it.key} className="list-item" style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
                   <div className="empty-icon" style={{ margin: 0, width: 32, height: 32 }}>{it.kind === 'Product' ? <Package size={15} /> : <Tag size={15} />}</div>
                   <div className="grow" style={{ minWidth: 200 }}>
-                    <div className="row-wrap"><span className="cell-primary">{it.title}</span><Badge tone="outline">{it.kind}</Badge>{p && <span className="mono small">{fmtGBP(p.monthlyPrice)}/mo · {contract(p.contractMonths)}</span>}</div>
+                    <div className="row-wrap"><span className="cell-primary">{it.title}</span><Badge tone="outline">{it.kind}</Badge>{p && <span className="mono small">{fmtEUR(p.monthlyPrice)}/mo · {contract(p.contractMonths)}</span>}</div>
                     <div className="small subtle mt-4">{it.reason}</div>
                     <div className="xs muted mt-4">{camps.length ? `Used by ${camps.map((c) => c.name).join(', ')}` : 'Not used by any campaign'}</div>
                   </div>

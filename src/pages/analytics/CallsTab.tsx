@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { ResponsiveContainer, ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { Card, ChartTip, CHART, Legend, Segmented, StatusBadge } from '../../components/ui';
 import { bucketSeries } from '../../lib/metrics';
-import { fmtCompact, fmtDur, fmtGBP, fmtInt, fmtPct } from '../../lib/format';
+import { fmtCompact, fmtDur, fmtEUR, fmtInt, fmtPct } from '../../lib/format';
 import { AX, bucketLabel, CampaignComparison, groupOf, maskedDaily, NoteFiltered, OUTCOME_GROUPS, StatStrip, sumDays, useExport, yearBuckets, type AnalyticsCtx } from './common';
 import type { CallOutcome } from '../../data/types';
 
@@ -58,7 +58,7 @@ export default function CallsTab({ ctx }: { ctx: AnalyticsCtx }) {
         { label: 'Failed / unreached', value: fmtInt(tot.calls - tot.connected), foot: `${fmtInt(ctx.calls.filter((c) => c.outcome === 'Failed').length)} technical failures` },
         { label: 'Avg. duration', value: fmtDur(avgDur), foot: 'connected calls' },
         { label: 'Total minutes', value: fmtCompact(tot.minutes), foot: `${fmtInt(tot.minutes / Math.max(1, days.length))} per day` },
-        { label: 'Expenditure', value: fmtGBP(tot.cost, 0), foot: `${fmtGBP(tot.calls ? tot.cost / tot.calls : 0, 3)} per attempt` },
+        { label: 'Expenditure', value: fmtEUR(tot.cost, 0), foot: `${fmtEUR(tot.calls ? tot.cost / tot.calls : 0, 3)} per attempt` },
       ]} />
 
       <div className="grid" style={{ marginBottom: 16 }}>

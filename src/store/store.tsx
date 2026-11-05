@@ -53,10 +53,10 @@ interface State {
 }
 
 const initialSettings: Settings = {
-  orgName: 'Vodafone UK', workspace: 'Consumer & SME Outbound', timezone: 'Europe/London',
+  orgName: 'Vodafone Ireland', workspace: 'Consumer & SME Outbound', timezone: 'Europe/Dublin',
   callingHours: { start: '09:00', end: '20:00', days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] },
   maxConcurrent: 40, dailyCap: 3000, recordCalls: true,
-  disclosure: 'This call is recorded for quality and training purposes. I am an AI assistant calling on behalf of Vodafone.',
+  disclosure: 'I am an AI assistant calling on behalf of Vodafone.',
   retentionDays: 90, transcriptRetentionDays: 365,
   assignment: 'Product-based', hotThreshold: 85, warmThreshold: 60,
   notify: {
@@ -213,11 +213,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 // ---------- simulation helpers ----------
 const SCRIPT: Record<number, [TranscriptLine['speaker'], string][]> = {
   1: [['System', 'Compliance check passed: consent valid, not suppressed, inside permitted hours.']],
-  2: [['AI', 'Hi, is that {first}? This is {agent}, an AI assistant calling on behalf of Vodafone. This call is recorded for quality and training.'], ['Customer', 'Yes, that’s me.']],
+  2: [['AI', 'Hi, is that {first}? This is {agent}, an AI assistant calling on behalf of Vodafone.'], ['Customer', 'Yes, that’s me.']],
   3: [['AI', 'Thanks {first}. Could you confirm the first line of your billing address for security?'], ['Customer', 'Sure — it’s 14 Mill Lane.']],
   4: [['AI', 'Lovely. How do you mostly use your connection day to day?'], ['Customer', 'Lots of streaming, and I work from home three days a week.']],
-  5: [['AI', 'Based on that, {product} would be a great fit — it’s £{price} a month on a {months}-month plan.'], ['Customer', 'Okay, what’s actually included?']],
-  6: [['Customer', 'It sounds a little more than I pay now, though.'], ['AI', 'I understand. With your Together Discount it comes down by £5 a month — would that work better?']],
+  5: [['AI', 'Based on that, {product} would be a great fit — it’s €{price} a month on a {months}-month plan.'], ['Customer', 'Okay, what’s actually included?']],
+  6: [['Customer', 'It sounds a little more than I pay now, though.'], ['AI', 'I understand. With your Together Discount it comes down by €5 a month — would that work better?']],
   7: [['AI', 'Would you be looking to switch in the next month or so?'], ['Customer', 'Yes, probably — if the price is right.']],
   8: [['AI', 'Great. Shall I book a quick call with a specialist to finalise everything — Thursday at 11?'], ['Customer', 'Thursday works.']],
   9: [['AI', 'Perfect, that’s booked. Thanks {first}, have a lovely day!'], ['System', 'Generating AI summary and handover…']],

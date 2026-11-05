@@ -164,11 +164,4 @@ export function useStatusTone() {
   return useMemo(() => ({ Available: 'green', Busy: 'orange', Away: 'amber', Offline: 'neutral' } as const), []);
 }
 
-export const isUKPhone = (raw: string) => /^(?:\+44|0044|0)(?:7\d{9}|[123]\d{8,9})$/.test(raw.replace(/[\s()-]/g, ''));
-export function formatUKPhone(raw: string) {
-  let d = raw.replace(/[\s()-]/g, '');
-  if (d.startsWith('0044')) d = d.slice(4); else if (d.startsWith('+44')) d = d.slice(3); else if (d.startsWith('0')) d = d.slice(1);
-  if (d.startsWith('7')) return `+44 ${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}`;
-  return `+44 ${d.slice(0, 2)} ${d.slice(2, 6)} ${d.slice(6)}`;
-}
-export const maskPhone = (p: string) => p.replace(/(\+44 \d)\d{3} \d{3} (\d{3})/, '$1*** *** $2');
+export const maskPhone = (p: string) => p.replace(/(\+3538\d)\d{4}(\d{3})/, '$1****$2');

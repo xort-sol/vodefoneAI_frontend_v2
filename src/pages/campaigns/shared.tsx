@@ -9,7 +9,7 @@ import { NOW, startOfDay } from '../../data/seed';
 import type { Call, Campaign } from '../../data/types';
 
 export const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-export const TIMEZONES = ['Europe/London', 'Europe/Dublin', 'Europe/Amsterdam', 'UTC'];
+export const TIMEZONES = ['Europe/Dublin', 'Europe/London', 'Europe/Amsterdam', 'UTC'];
 export const VOICEMAIL_POLICIES = ['Do not leave a message', 'Leave approved compliant message', 'Hang up and retry later'] as const;
 
 export const spendOf = (c: Campaign) => c.minutes * c.costPerMinute;
@@ -89,7 +89,7 @@ export function EditCampaignModal({ campaign, open, onClose, showName = true }: 
   if (toMin(f.end) <= toMin(f.start)) errs.end = 'End time must be after start time';
   if (f.concurrency < 1 || f.concurrency > 50) errs.concurrency = 'Between 1 and 50';
   if (f.dailyCap < 1) errs.dailyCap = 'Must be at least 1';
-  if (f.maxAttempts < 1 || f.maxAttempts > 6) errs.maxAttempts = 'Between 1 and 6 (Ofcom guidance)';
+  if (f.maxAttempts < 1 || f.maxAttempts > 6) errs.maxAttempts = 'Between 1 and 6 (ComReg guidance)';
   if (f.intervalHours < 1) errs.intervalHours = 'At least 1 hour';
   const hours = app.settings.callingHours;
   const outside = toMin(f.start) < toMin(hours.start) || toMin(f.end) > toMin(hours.end) || f.days.some((d) => !hours.days.includes(d));

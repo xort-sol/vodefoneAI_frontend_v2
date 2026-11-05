@@ -10,7 +10,8 @@ import {
 } from '../../components/ui';
 import { fmtDate, fmtDateTime, fmtInt, fmtPct, fmtRelative, fmtTime, toCSV, downloadFile, WD } from '../../lib/format';
 import { DAY, NOW } from '../../data/seed';
-import { Chip, SaveBar, formatUKPhone, isUKPhone, useDraft, useLocalStore } from './shared';
+import { Chip, SaveBar, useDraft, useLocalStore } from './shared';
+import { normaliseIrishPhone } from '../leads/shared';
 
 export const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const LOCK = 'Requires compliance.manage permission';
@@ -64,7 +65,7 @@ export function OverviewTab({ go }: { go: (t: string) => void }) {
   const h = app.settings.callingHours;
   const nodes = [
     { key: 'consent', icon: <UserCheck />, label: 'Marketing consent', desc: 'Valid voice consent on file', blocked: c.counts.consent, tab: 'consent' },
-    { key: 'supp', icon: <PhoneOff />, label: 'Suppression / TPS', desc: 'Not on DNC or TPS list', blocked: c.counts.suppression, tab: 'suppression' },
+    { key: 'supp', icon: <PhoneOff />, label: 'Suppression / National Directory Database', desc: 'Not on DNC or National Directory Database', blocked: c.counts.suppression, tab: 'suppression' },
     { key: 'hours', icon: <Clock />, label: 'Calling hours', desc: `${h.days.length} days · ${h.start}–${h.end}`, blocked: c.deferred, tab: 'hours', note: c.open ? 'Window open now' : 'Window closed — deferred' },
     { key: 'attempts', icon: <Repeat />, label: 'Attempt limits', desc: 'Below campaign max attempts', blocked: c.counts.attempts, tab: 'suppression' },
     { key: 'vuln', icon: <HeartHandshake />, label: 'Vulnerable flags', desc: `${c.vulnerableNumbers} flagged numbers`, blocked: c.vulnerable, tab: 'suppression' },
@@ -119,7 +120,7 @@ export function OverviewTab({ go }: { go: (t: string) => void }) {
         </Card>
         <div className="col" style={{ gap: 16 }}>
       <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
-        <MiniStat label="Active suppressions" v={fmtInt(app.suppressions.length)} sub={`${app.suppressions.filter((s) => s.reason === 'TPS registered').length} from TPS`} onClick={() => go('suppression')} />
+        <MiniStat label="Active suppressions" v={fmtInt(app.suppressions.length)} sub={`${app.suppressions.filter((s) => s.reason === 'National Directory Database').length} from National Directory Database`} onClick={() => go('suppression')} />
         <MiniStat label="Opt-outs (all time)" v={fmtInt(c.optOutCalls.length)} sub={`${fmtPct(c.optOutCalls.length ? (c.optProcessed / c.optOutCalls.length) * 100 : 100, 0)} processed within SLA`} onClick={() => go('optout')} />
         <MiniStat label="Open data requests" v={fmtInt(app.deletionRequests.filter((d) => !['Completed', 'Rejected'].includes(d.status)).length)} sub={c.dsrOverdue ? `${c.dsrOverdue} overdue` : 'None overdue'} warn={!!c.dsrOverdue} onClick={() => go('dsr')} />
         <MiniStat label="Consent withdrawn" v={fmtInt(app.consents.filter((x) => x.status === 'Withdrawn').length)} sub={`of ${fmtInt(app.consents.length)} records`} onClick={() => go('consent')} />
@@ -184,7 +185,7 @@ export function ConsentTab() {
 }
 
 /* ---------------- Suppression ---------------- */
-const REASONS: Suppression['reason'][] = ['Customer opt-out', 'TPS registered', 'Complaint', 'Vulnerable customer', 'Legal hold', 'Deceased'];
+const REASONS: Suppression['reason'][] = ['Customer opt-out', 'National Directory Database', 'Complaint', 'Vulnerable customer', 'Legal hold', 'Deceased'];
 export function SuppressionTab({ canEdit }: { canEdit: boolean }) {
   const app = useApp(); const confirm = useConfirm();
   const [q, setQ] = useState(''); const [reason, setReason] = useState(''); const [adding, setAdding] = useState(false);
@@ -197,12 +198,12 @@ export function SuppressionTab({ canEdit }: { canEdit: boolean }) {
   };
   const sync = () => {
     setSyncing(true);
-    setTimeout(() => { setSyncing(false); setTps({ at: new Date().toISOString(), records: tps.records + Math.floor(Math.random() * 900) }); app.audit('Synced TPS register', 'Telephone Preference Service', 'Compliance'); app.toast('TPS sync complete (sandbox)', 'Register refreshed · no new matches in active queues'); }, 1200);
+    setTimeout(() => { setSyncing(false); setTps({ at: new Date().toISOString(), records: tps.records + Math.floor(Math.random() * 900) }); app.audit('Synced National Directory Database', 'National Directory Database', 'Compliance'); app.toast('National Directory Database sync complete (sandbox)', 'Register refreshed · no new matches in active queues'); }, 1200);
   };
   const cols: Column<Suppression>[] = [
     { key: 'phone', header: 'Number', sort: (s) => s.phone, render: (s) => <span className="mono">{s.phone}</span> },
     { key: 'name', header: 'Name', sort: (s) => s.name, render: (s) => <span className="cell-primary">{s.name}</span> },
-    { key: 'reason', header: 'Reason', sort: (s) => s.reason, render: (s) => <Badge tone={s.reason === 'Vulnerable customer' ? 'purple' : s.reason === 'Complaint' || s.reason === 'Legal hold' ? 'red' : s.reason === 'TPS registered' ? 'blue' : 'neutral'}>{s.reason}</Badge> },
+    { key: 'reason', header: 'Reason', sort: (s) => s.reason, render: (s) => <Badge tone={s.reason === 'Vulnerable customer' ? 'purple' : s.reason === 'Complaint' || s.reason === 'Legal hold' ? 'red' : s.reason === 'National Directory Database' ? 'blue' : 'neutral'}>{s.reason}</Badge> },
     { key: 'by', header: 'Added by', sort: (s) => s.addedBy, render: (s) => <span className="small">{s.addedBy}</span> },
     { key: 'at', header: 'Added', sort: (s) => +new Date(s.addedAt), render: (s) => <span className="mono small">{fmtDate(s.addedAt)}</span> },
     { key: 'x', header: '', render: (s) => <Button size="xs" variant="ghost" icon={<Trash2 size={13} />} disabled={!canEdit} title={canEdit ? 'Remove' : LOCK} onClick={(e) => { e.stopPropagation(); remove(s); }} aria-label={`Remove ${s.phone}`} /> },
@@ -210,7 +211,7 @@ export function SuppressionTab({ canEdit }: { canEdit: boolean }) {
   return (
     <div className="col" style={{ gap: 16 }}>
       <div className="grid g-3">
-        <Card title="TPS register sync" sub="Telephone Preference Service" actions={<StatusBadge status="Active" />}>
+        <Card title="National Directory Database sync" sub="National Directory Database" actions={<StatusBadge status="Active" />}>
           <div className="kv" style={{ gridTemplateColumns: '110px 1fr' }}>
             <dt>Last sync</dt><dd className="mono">{fmtRelative(tps.at)}</dd>
             <dt>Records</dt><dd className="mono">{fmtInt(tps.records)}</dd>
@@ -247,8 +248,8 @@ function AddSuppression({ open, onClose }: { open: boolean; onClose: () => void 
   const app = useApp();
   const [f, setF] = useState({ phone: '', name: '', reason: 'Customer opt-out' as Suppression['reason'] });
   const [touched, setTouched] = useState(false);
-  const formatted = isUKPhone(f.phone) ? formatUKPhone(f.phone) : '';
-  const err = !isUKPhone(f.phone) ? 'Enter a valid UK number, e.g. 07700 900123 or +44 20 7946 0000' : app.suppressions.some((s) => s.phone === formatted) ? 'This number is already suppressed' : '';
+  const formatted = normaliseIrishPhone(f.phone) ?? '';
+  const err = !formatted ? 'Enter a valid Irish number, e.g. 087 123 4567 or +353 1 437 8407' : app.suppressions.some((s) => s.phone === formatted) ? 'This number is already suppressed' : '';
   const close = () => { setF({ phone: '', name: '', reason: 'Customer opt-out' }); setTouched(false); onClose(); };
   const save = () => {
     setTouched(true); if (err) return;
@@ -263,8 +264,8 @@ function AddSuppression({ open, onClose }: { open: boolean; onClose: () => void 
     <Modal open={open} onClose={close} title="Add to do-not-call list" desc="Suppressed numbers are blocked by the pre-call check across every campaign."
       footer={<><Button onClick={close}>Cancel</Button><Button variant="primary" onClick={save} disabled={touched && !!err}>Add entry</Button></>}>
       <div className="col gap-16">
-        <Field label="Phone number" required error={touched && err} hint={formatted ? `Will be stored as ${formatted}` : 'UK mobile or landline'}>
-          <input className={`input mono ${touched && err ? 'invalid' : ''}`} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="+44 7700 900123" autoFocus />
+        <Field label="Phone number" required error={touched && err} hint={formatted ? `Will be stored as ${formatted}` : 'Irish mobile or landline'}>
+          <input className={`input mono ${touched && err ? 'invalid' : ''}`} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="+353 87 123 4567" autoFocus />
         </Field>
         <Field label="Name" hint="Optional"><input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
         <Field label="Reason" required>
@@ -326,7 +327,7 @@ export function HoursTab({ canEdit }: { canEdit: boolean }) {
   const d = useDraft(app.settings.callingHours);
   const [holidays, setHolidays] = useLocalStore('blackouts', BANK_HOLIDAYS);
   const [nh, setNh] = useState({ date: '', label: '' });
-  const err = d.draft.start >= d.draft.end ? 'End time must be after start time' : !d.draft.days.length ? 'Select at least one day' : d.draft.start < '08:00' || d.draft.end > '21:00' ? 'Ofcom guidance: keep outbound calls between 08:00 and 21:00' : '';
+  const err = d.draft.start >= d.draft.end ? 'End time must be after start time' : !d.draft.days.length ? 'Select at least one day' : d.draft.start < '08:00' || d.draft.end > '21:00' ? 'ComReg guidance: keep outbound calls between 08:00 and 21:00' : '';
   const toggle = (day: string) => d.patch({ days: d.draft.days.includes(day) ? d.draft.days.filter((x) => x !== day) : DAYS.filter((x) => x === day || d.draft.days.includes(x)) });
   const save = () => {
     if (err) { app.toast('Cannot save calling hours', err, 'error'); return; }
@@ -346,7 +347,7 @@ export function HoursTab({ canEdit }: { canEdit: boolean }) {
       <Card title="Permitted calling window" sub="Applies to every campaign; campaign schedules can only narrow it." actions={windowOpenNow(app.settings.callingHours) ? <Badge tone="green" dot live>Open now</Badge> : <Badge dot>Closed now</Badge>}>
         <fieldset disabled={!canEdit} style={{ border: 0, padding: 0, margin: 0 }}>
           <div className="form-grid">
-            <Field label="Start time" error={!!err && err.startsWith('Ofcom') && d.draft.start < '08:00' && err}><input type="time" className="input" value={d.draft.start} onChange={(e) => d.patch({ start: e.target.value })} /></Field>
+            <Field label="Start time" error={!!err && err.startsWith('ComReg') && d.draft.start < '08:00' && err}><input type="time" className="input" value={d.draft.start} onChange={(e) => d.patch({ start: e.target.value })} /></Field>
             <Field label="End time" error={err.startsWith('End') && err}><input type="time" className="input" value={d.draft.end} onChange={(e) => d.patch({ end: e.target.value })} /></Field>
           </div>
           <div className="field-label mt-16" style={{ marginBottom: 8 }}>Calling days</div>

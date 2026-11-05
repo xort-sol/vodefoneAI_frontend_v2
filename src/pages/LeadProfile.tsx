@@ -10,7 +10,7 @@ import {
 } from '../components/ui';
 import type { Call, Lead } from '../data/types';
 import { NOW } from '../data/seed';
-import { fmtDate, fmtDateTime, fmtDur, fmtGBP, fmtRelative } from '../lib/format';
+import { fmtDate, fmtDateTime, fmtDur, fmtEUR, fmtRelative } from '../lib/format';
 import { LeadFormModal, PageFix, ScheduleModal, TAGS, TaskModal, toDateInput, toTimeInput, fromInputs, uniq, useCallsByLead, useReps } from './leads/shared';
 
 type Tab = 'overview' | 'calls' | 'notes' | 'tasks' | 'activity';
@@ -52,7 +52,7 @@ export default function LeadProfile() {
   const inHours = app.settings.callingHours.days.includes(dayName) && hour >= sh + sm / 60 && hour < eh + em / 60;
   const checks: [string, boolean, string][] = [
     ['Marketing consent on file', lead.consent, lead.consent ? 'Voice consent granted' : 'No valid consent — cannot be called'],
-    ['Not on suppression / TPS list', !(lead.dnc || suppressed), lead.dnc || suppressed ? 'Number is suppressed' : 'Checked against 1 internal + TPS list'],
+    ['Not on suppression / National Directory Database', !(lead.dnc || suppressed), lead.dnc || suppressed ? 'Number is suppressed' : 'Checked against 1 internal list + National Directory Database'],
     ['Record active', !lead.archived, lead.archived ? 'Archived' : 'Active record'],
     ['Status permits contact', !['Converted', 'Do not call', 'Not interested'].includes(lead.status), `Status: ${lead.status}`],
     ['Within attempt limit', !campaign || lead.attempts < campaign.retry.maxAttempts, campaign ? `${lead.attempts} of ${campaign.retry.maxAttempts} attempts used` : 'No campaign limit'],
@@ -184,7 +184,7 @@ export default function LeadProfile() {
                 <Card title="Product interest">
                   {product ? (
                     <>
-                      <div className="row between"><div><div className="cell-primary">{product.name}</div><div className="cell-sub">{product.category} · {product.contractMonths} months · {product.data}{product.speed ? ` · ${product.speed}` : ''}</div></div><div className="mono strong">{fmtGBP(product.monthlyPrice)}<span className="muted">/mo</span></div></div>
+                      <div className="row between"><div><div className="cell-primary">{product.name}</div><div className="cell-sub">{product.category} · {product.contractMonths} months · {product.data}{product.speed ? ` · ${product.speed}` : ''}</div></div><div className="mono strong">{fmtEUR(product.monthlyPrice)}<span className="muted">/mo</span></div></div>
                       <div className="row-wrap mt-12">{product.benefits.map((b) => <span key={b} className="tag">{b}</span>)}</div>
                       {!product.approved && <div className="banner warn mt-12"><AlertTriangle />Product pending compliance approval — AI pitching is blocked.</div>}
                     </>

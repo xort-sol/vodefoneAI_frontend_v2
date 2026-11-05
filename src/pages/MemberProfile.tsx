@@ -9,7 +9,7 @@ import type { Role, TeamMember } from '../data/types';
 import {
   Avatar, Badge, Button, Card, ChartTip, CHART, DataTable, EmptyState, Field, KpiCard, KV, Legend, ScoreBar, Segmented, StatusBadge, type Column,
 } from '../components/ui';
-import { fmtDate, fmtDateShort, fmtDateTime, fmtGBP, fmtInt, fmtPct, fmtRelative, fmtTime } from '../lib/format';
+import { fmtDate, fmtDateShort, fmtDateTime, fmtEUR, fmtInt, fmtPct, fmtRelative, fmtTime } from '../lib/format';
 import { DAY, NOW, startOfDay } from '../data/seed';
 import { AdminStyles, MEMBER_STATUSES, PERMISSION_META, ROLES, ROLE_DESC, ROLE_TONE, TEAMS, roleHas, useMemberStats } from './admin/shared';
 import type { Lead } from '../data/types';
@@ -97,7 +97,7 @@ function Profile({ m, s }: { m: TeamMember; s: ReturnType<ReturnType<typeof useM
             <KpiCard label="Overdue" icon={<AlertTriangle size={13} />} value={<span className={s.overdue ? 'orange' : ''}>{fmtInt(s.overdue)}</span>} prevLabel="tasks past due date" />
             <KpiCard label="Conversions" icon={<BadgeCheck size={13} />} value={fmtInt(s.conversions)} prevLabel="lifetime, assigned leads" />
             <KpiCard label="Conversion rate" icon={<Percent size={13} />} value={fmtPct(s.convRate)} prevLabel="converted ÷ assigned" />
-            <KpiCard label="Revenue" icon={<PoundSterling size={13} />} value={fmtGBP(s.revenue)} prevLabel="contract value, converted" />
+            <KpiCard label="Revenue" icon={<PoundSterling size={13} />} value={fmtEUR(s.revenue)} prevLabel="contract value, converted" />
           </div>
 
           <Card title="Weekly conversions" sub="Last 12 weeks · by week of final call">

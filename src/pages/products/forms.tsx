@@ -24,7 +24,7 @@ export function ProductDrawer({ product, offers, onClose, onSave, canManage }: {
   const err = {
     name: !p.name.trim() ? 'Name is required' : '',
     description: p.description.trim().length < 15 ? 'Add a description (15+ characters)' : '',
-    monthlyPrice: !(p.monthlyPrice > 0) ? 'Enter a monthly price above £0' : p.monthlyPrice > 500 ? 'Price looks too high' : '',
+    monthlyPrice: !(p.monthlyPrice > 0) ? 'Enter a monthly price above €0' : p.monthlyPrice > 500 ? 'Price looks too high' : '',
     upfront: p.upfront < 0 ? 'Cannot be negative' : '',
     contractMonths: ![1, 12, 18, 24, 36].includes(p.contractMonths) ? 'Choose a valid contract length' : '',
     data: !p.data.trim() ? 'Data allowance is required' : '',
@@ -49,8 +49,8 @@ export function ProductDrawer({ product, offers, onClose, onSave, canManage }: {
           <Field label="Category" required><select className="select" value={p.category} onChange={(x) => set({ category: x.target.value as Product['category'] })}>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></Field>
           <Field label="Availability"><select className="select" value={p.availability} onChange={(x) => set({ availability: x.target.value as Product['availability'] })}>{['Available', 'Limited', 'Retired'].map((c) => <option key={c}>{c}</option>)}</select></Field>
           <Field label="Description" required error={e('description')} className="span-all"><textarea className={`textarea ${e('description') ? 'invalid' : ''}`} value={p.description} onChange={(x) => set({ description: x.target.value })} /></Field>
-          <Field label="Monthly price (£)" required error={e('monthlyPrice')}><input type="number" min={0} step={0.5} className={`input ${e('monthlyPrice') ? 'invalid' : ''}`} value={p.monthlyPrice || ''} onChange={(x) => set({ monthlyPrice: +x.target.value })} /></Field>
-          <Field label="Upfront cost (£)" error={e('upfront')}><input type="number" min={0} className="input" value={p.upfront} onChange={(x) => set({ upfront: +x.target.value })} /></Field>
+          <Field label="Monthly price (€)" required error={e('monthlyPrice')}><input type="number" min={0} step={0.5} className={`input ${e('monthlyPrice') ? 'invalid' : ''}`} value={p.monthlyPrice || ''} onChange={(x) => set({ monthlyPrice: +x.target.value })} /></Field>
+          <Field label="Upfront cost (€)" error={e('upfront')}><input type="number" min={0} className="input" value={p.upfront} onChange={(x) => set({ upfront: +x.target.value })} /></Field>
           <Field label="Contract duration" required error={e('contractMonths')}><select className="select" value={p.contractMonths} onChange={(x) => set({ contractMonths: +x.target.value })}>{[1, 12, 18, 24, 36].map((m) => <option key={m} value={m}>{m === 1 ? '30-day rolling' : `${m} months`}</option>)}</select></Field>
           <Field label="Data allowance" required error={e('data')}><input className={`input ${e('data') ? 'invalid' : ''}`} value={p.data} placeholder="e.g. Unlimited, 100GB" onChange={(x) => set({ data: x.target.value })} /></Field>
           {needsSpeed && <Field label="Average speed" required error={e('speed')}><input className={`input ${e('speed') ? 'invalid' : ''}`} value={p.speed ?? ''} placeholder="e.g. 500Mbps" onChange={(x) => set({ speed: x.target.value })} /></Field>}
@@ -120,7 +120,7 @@ export function OfferModal({ offer, products, focusProducts, onClose, onSave }: 
               <label key={p.id} className="row small inset-box" style={{ cursor: 'pointer', padding: '8px 10px', background: o.productIds.includes(p.id) ? 'var(--blue-tint)' : undefined }}>
                 <input type="checkbox" className="checkbox" checked={o.productIds.includes(p.id)} onChange={(x) => set({ productIds: x.target.checked ? [...o.productIds, p.id] : o.productIds.filter((i) => i !== p.id) })} />
                 <span className="grow truncate">{p.name}</span>
-                <span className="mono xs muted">£{p.monthlyPrice}</span>
+                <span className="mono xs muted">€{p.monthlyPrice}</span>
                 {!p.approved && <span className="xs" style={{ color: 'var(--amber)' }}>pending</span>}
               </label>
             ))}

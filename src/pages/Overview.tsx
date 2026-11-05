@@ -8,7 +8,7 @@ import { useApp, STAGES } from '../store/store';
 import { Badge, Button, Card, ChartTip, CHART, KpiCard, Legend, PageHeader, ScoreBar, StatusBadge, Avatar, SimBadge, Segmented, Progress, ExportMenu } from '../components/ui';
 import { DateRangePicker, useRangeState } from '../components/DateRange';
 import { bucketSeries, callsIn, dailySeries, makeRange, previousRange, summarize, leadBuckets, inRange } from '../lib/metrics';
-import { fmtCompact, fmtDur, fmtGBP, fmtInt, fmtPct, fmtRelative, fmtTime, pctChange, fmtDateShort, WD } from '../lib/format';
+import { fmtCompact, fmtDur, fmtEUR, fmtInt, fmtPct, fmtRelative, fmtTime, pctChange, fmtDateShort, WD } from '../lib/format';
 import { DAY, NOW, startOfDay } from '../data/seed';
 
 export default function Overview() {
@@ -154,7 +154,7 @@ export default function Overview() {
         <KpiCard label="Qualified leads" icon={<BadgeCheck size={13} />} value={fmtInt(qualifiedInRange.length)} delta={pctChange(qualifiedInRange.length, qualifiedPrev.length)} prevLabel={`${fmtPct(cur.qualRate)} of connected`} spark={spark(30, 'qualified')} sparkColor={CHART.green} onClick={() => nav('/qualified')} />
         <KpiCard label="Conversion rate" icon={<Percent size={13} />} value={fmtPct(convRate)} delta={convRate - convPrev} prevLabel="qualified → sale, pts" onClick={() => nav('/analytics?tab=leads')} />
         <KpiCard label="Calling minutes" icon={<Clock size={13} />} value={fmtCompact(cur.minutes)} delta={pctChange(cur.minutes, prv.minutes)} prevLabel={`${fmtCompact(prv.minutes)} prev.`} spark={spark(30, 'minutes')} sparkColor={CHART.purple} onClick={() => nav('/analytics?tab=cost')} />
-        <KpiCard label="Calling expenditure" icon={<PoundSterling size={13} />} value={fmtGBP(cur.cost)} delta={pctChange(cur.cost, prv.cost)} invert prevLabel={`${fmtGBP(cur.connected ? cur.cost / Math.max(1, qualifiedInRange.length) : 0, 2)} per qualified`} spark={spark(30, 'cost')} sparkColor={CHART.orange} onClick={() => nav('/analytics?tab=cost')} />
+        <KpiCard label="Calling expenditure" icon={<PoundSterling size={13} />} value={fmtEUR(cur.cost)} delta={pctChange(cur.cost, prv.cost)} invert prevLabel={`${fmtEUR(cur.connected ? cur.cost / Math.max(1, qualifiedInRange.length) : 0, 2)} per qualified`} spark={spark(30, 'cost')} sparkColor={CHART.orange} onClick={() => nav('/analytics?tab=cost')} />
         <KpiCard label="Avg. call duration" icon={<Timer size={13} />} value={fmtDur(cur.avgDuration)} delta={pctChange(cur.avgDuration, prv.avgDuration)} prevLabel={`${fmtDur(prv.avgDuration)} prev. · connected only`} onClick={() => nav('/analytics?tab=ai')} />
       </div>
 
@@ -258,7 +258,7 @@ export default function Overview() {
                     <td data-label="Connected" className="num">{fmtInt(c.connected)}</td>
                     <td data-label="Qualified" className="num strong">{fmtInt(c.qualified)}</td>
                     <td data-label="Qual. rate"><div className="row"><div style={{ width: 64 }}><Progress value={c.qualRate * 2.5} color={CHART.green} /></div><span className="mono small">{fmtPct(c.qualRate)}</span></div></td>
-                    <td data-label="Spend" className="num mono">{fmtGBP(c.cost)}</td>
+                    <td data-label="Spend" className="num mono">{fmtEUR(c.cost)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -302,9 +302,9 @@ export default function Overview() {
               <LineChart data={bucketSeries(year.slice(-84), 'week').map((w) => ({ label: w.label.replace('w/c ', ''), cost: w.cost, cpq: w.qualified ? +(w.cost / w.qualified).toFixed(2) : 0 }))} margin={{ left: -16, right: 4, top: 8 }}>
                 <CartesianGrid stroke={CHART.grid} vertical={false} />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} />
-                <YAxis yAxisId="a" tickLine={false} axisLine={false} width={44} tickFormatter={(v) => `£${v}`} />
-                <YAxis yAxisId="b" orientation="right" tickLine={false} axisLine={false} width={36} tickFormatter={(v) => `£${v}`} />
-                <Tooltip content={<ChartTip fmt={(v) => fmtGBP(v, 2)} />} cursor={{ stroke: CHART.light }} />
+                <YAxis yAxisId="a" tickLine={false} axisLine={false} width={44} tickFormatter={(v) => `€${v}`} />
+                <YAxis yAxisId="b" orientation="right" tickLine={false} axisLine={false} width={36} tickFormatter={(v) => `€${v}`} />
+                <Tooltip content={<ChartTip fmt={(v) => fmtEUR(v, 2)} />} cursor={{ stroke: CHART.light }} />
                 <Line yAxisId="a" type="monotone" dataKey="cost" name="Weekly spend" stroke={CHART.orange} strokeWidth={1.75} dot={false} />
                 <Line yAxisId="b" type="monotone" dataKey="cpq" name="Cost / qualified" stroke={CHART.ink} strokeWidth={1.5} strokeDasharray="4 3" dot={false} />
               </LineChart>

@@ -5,7 +5,7 @@ import { useApp } from '../store/store';
 import { Avatar, Badge, Button, Card, Drawer, Field, FilterSelect, KV, PageHeader, Segmented, StatusBadge, Switch, useConfirm } from '../components/ui';
 import type { Appointment } from '../data/types';
 import { DAY, NOW, startOfDay } from '../data/seed';
-import { MONTHS, fmtDateTime, fmtGBP, fmtInt, fmtPct, fmtRelative, fmtTime } from '../lib/format';
+import { MONTHS, fmtDateTime, fmtEUR, fmtInt, fmtPct, fmtRelative, fmtTime } from '../lib/format';
 import { APPT_COLOR, APPT_STATUSES, APPT_TYPES, PageFix, ScheduleModal, fromInputs, toDateInput, toTimeInput, useReps } from './leads/shared';
 
 type View = 'month' | 'week' | 'day';
@@ -290,7 +290,7 @@ export default function Appointments() {
                 <>
                   <div className="row" style={{ marginBottom: 12 }}><Avatar name={selLead.name} /><div className="grow"><Link to={`/leads/${selLead.id}`} className="medium">{selLead.name}</Link><div className="cell-sub mono">{selLead.id} · {selLead.phone}</div></div><StatusBadge status={selLead.status} /></div>
                   <KV items={[
-                    ['Product', selProduct ? `${selProduct.name} · ${fmtGBP(selProduct.monthlyPrice)}/mo` : '—'],
+                    ['Product', selProduct ? `${selProduct.name} · ${fmtEUR(selProduct.monthlyPrice)}/mo` : '—'],
                     ['Sales rep', <span key="r" className="row gap-4"><Avatar name={selRep?.name} initials={selRep?.initials} size="sm" />{selRep?.name}</span>],
                     ['Type', sel.type], ['Booked by', sel.source],
                   ]} />

@@ -9,7 +9,7 @@ import { useApp } from '../store/store';
 import {
   AudioPlayer, Avatar, Badge, Button, Card, CHART, EmptyState, Field, KV, Modal, PageHeader, ScoreBar, SearchInput, Segmented, SimBadge, StatusBadge, Transcript,
 } from '../components/ui';
-import { downloadFile, fmtDate, fmtDateTime, fmtDur, fmtDurLong, fmtGBP, fmtRelative, fmtTime } from '../lib/format';
+import { downloadFile, fmtDate, fmtDateTime, fmtDur, fmtDurLong, fmtEUR, fmtRelative, fmtTime } from '../lib/format';
 import { NOW, DAY } from '../data/seed';
 import type { Call, TranscriptLine } from '../data/types';
 import { getNavList, PRESET_TAGS, QUAL_TONE, qualBreakdown, qualStatus, TAG_TONE, useAnnotation } from './conversations/state';
@@ -218,7 +218,7 @@ function Detail({ call }: { call: Call }) {
               ['Started', <span className="mono small">{fmtDate(call.startedAt)} {fmtTime(call.startedAt)}</span>],
               ['Duration', <span className="mono">{fmtDur(call.duration)}</span>],
               ['AI agent', agent ? <Link to={`/agents/${agent.id}`} className="row gap-4" style={{ display: 'inline-flex' }}><Avatar initials={agent.initials} color={agent.color} size="sm" agent />{agent.name} <span className="mono xs muted">{agent.version}</span></Link> : '—'],
-              ['Cost', <span className="mono">{fmtGBP(call.cost, 3)}</span>],
+              ['Cost', <span className="mono">{fmtEUR(call.cost, 3)}</span>],
               ['Recording', <StatusBadge status={call.recording} dot={false} />],
               ['Connected', call.connected ? 'Yes' : 'No'],
               ...(call.failureReason ? [['Failure', <span className="red small">{call.failureReason}</span>] as [ReactNode, ReactNode]] : []),
@@ -396,12 +396,12 @@ function Insights({ call, lines, onSeek }: { call: Call; lines: TranscriptLine[]
       <Card title="Product & pricing discussed">
         {product && <KV items={[
           ['Product', product.name],
-          ['Price quoted', <span className="mono">{fmtGBP(product.monthlyPrice)}/mo{product.category.includes('Business') ? ' ex VAT' : ''}</span>],
+          ['Price quoted', <span className="mono">{fmtEUR(product.monthlyPrice)}/mo{product.category.includes('Business') ? ' ex VAT' : ''}</span>],
           ['Contract', `${product.contractMonths} months`],
           ['Data / speed', product.speed ?? product.data],
           ['Pricing mentions', <span className="row gap-4">{pricing.length}{pricing.map((p) => <button key={p.t} className="btn link xs mono" onClick={() => onSeek(p.t)}>{fmtDur(p.t)}</button>)}</span>],
         ]} />}
-        {lines.some((l) => l.text.includes('Together Discount')) && <div className="banner info mt-12"><Info /><span className="small">Together Discount (−£5/mo) offered during objection handling.</span></div>}
+        {lines.some((l) => l.text.includes('Together Discount')) && <div className="banner info mt-12"><Info /><span className="small">Together Discount (−€5/mo) offered during objection handling.</span></div>}
       </Card>
 
       <Card title="Questions asked" sub={`${call.questions.length + call.unanswered.length} from customer`}>

@@ -96,7 +96,7 @@ export function DsrTab({ canEdit }: { canEdit: boolean }) {
           </div>
         ))}
       </div>
-      <Card flush title="Data subject requests" sub="UK GDPR: respond within one calendar month of receipt">
+      <Card flush title="Data subject requests" sub="GDPR: respond within one calendar month of receipt">
         <DataTable rows={rows} columns={cols} rowKey={(d) => d.id} initialSort={{ key: 'due', dir: 'asc' }}
           toolbar={<>
             <FilterSelect label="Status" value={status} onChange={setStatus} options={[...steps, 'Rejected']} />

@@ -112,7 +112,7 @@ export function defaultBuilder(a: AgentX, products: Product[]): Builder {
     scripts: prods.map((p, i) => ({
       id: `s${i + 1}`, productId: p.id,
       opening: `I'm calling because you're eligible for ${p.name}.`,
-      pitch: `${p.name} gives you ${p.data.toLowerCase()} data${p.speed ? ` and ${p.speed} average speeds` : ''} for £${p.monthlyPrice} a month on a ${p.contractMonths}-month plan.`,
+      pitch: `${p.name} gives you ${p.data.toLowerCase()} data${p.speed ? ` and ${p.speed} average speeds` : ''} for €${p.monthlyPrice} a month on a ${p.contractMonths}-month plan.`,
       closing: 'Would you like me to book a quick call with a specialist to go through the details?',
     })),
     flow: defaultFlow(),
@@ -158,7 +158,7 @@ export function derivedKb(products: Product[], offers: Offer[]): DerivedKb[] {
   const out: DerivedKb[] = [];
   products.filter((p) => p.availability !== 'Retired').forEach((p) => {
     out.push({ id: `p:${p.id}`, source: 'product', refId: p.id, category: cat(p), title: p.name, content: `${p.description} ${p.benefits.join(' · ')}`, approved: p.approved, updatedAt: p.lastReviewed });
-    out.push({ id: `pr:${p.id}`, source: 'product', refId: p.id, category: 'Pricing', title: `${p.name} — price`, content: `£${p.monthlyPrice}/month${p.upfront ? `, £${p.upfront} upfront` : ''}.`, approved: p.approved, updatedAt: p.lastReviewed });
+    out.push({ id: `pr:${p.id}`, source: 'product', refId: p.id, category: 'Pricing', title: `${p.name} — price`, content: `€${p.monthlyPrice}/month${p.upfront ? `, €${p.upfront} upfront` : ''}.`, approved: p.approved, updatedAt: p.lastReviewed });
     out.push({ id: `ct:${p.id}`, source: 'product', refId: p.id, category: 'Contract terms', title: `${p.name} — contract`, content: `${p.contractMonths === 1 ? '30-day rolling' : `${p.contractMonths}-month`} contract.`, approved: p.approved, updatedAt: p.lastReviewed });
     out.push({ id: `el:${p.id}`, source: 'product', refId: p.id, category: 'Eligibility rules', title: `${p.name} — eligibility`, content: p.eligibility, approved: p.approved, updatedAt: p.lastReviewed });
   });

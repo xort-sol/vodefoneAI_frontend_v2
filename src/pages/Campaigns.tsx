@@ -5,7 +5,7 @@ import { useApp } from '../store/store';
 import {
   Avatar, Badge, Button, Card, DataTable, EmptyState, ExportMenu, FilterSelect, Menu, MenuItem, PageHeader, Progress, SearchInput, Segmented, SimBadge, StatusBadge, Tabs, type Column,
 } from '../components/ui';
-import { downloadFile, fmtCompact, fmtDate, fmtDateShort, fmtGBP, fmtInt, fmtPct, toCSV } from '../lib/format';
+import { downloadFile, fmtCompact, fmtDate, fmtDateShort, fmtEUR, fmtInt, fmtPct, toCSV } from '../lib/format';
 import type { Campaign } from '../data/types';
 import { CHART } from '../components/ui';
 import { EditCampaignModal, pctOf, spendOf, useCampaignActions, ModulePage } from './campaigns/shared';
@@ -89,7 +89,7 @@ export default function Campaigns() {
     { key: 'warm', header: 'Warm', align: 'right', sort: (c) => c.warm, render: (c) => fmtInt(c.warm) },
     { key: 'qualified', header: 'Qual.', align: 'right', sort: (c) => c.qualified, render: (c) => <span className="strong">{fmtInt(c.qualified)}</span> },
     { key: 'minutes', header: 'Min.', align: 'right', sort: (c) => c.minutes, render: (c) => <span className="mono">{fmtInt(c.minutes)}</span> },
-    { key: 'spend', header: 'Spend', align: 'right', sort: (c) => spendOf(c), render: (c) => <span className="mono" title={`${fmtInt(c.minutes)} min × ${fmtGBP(c.costPerMinute, 3)}/min`}>{fmtGBP(spendOf(c), 2)}</span> },
+    { key: 'spend', header: 'Spend', align: 'right', sort: (c) => spendOf(c), render: (c) => <span className="mono" title={`${fmtInt(c.minutes)} min × ${fmtEUR(c.costPerMinute, 3)}/min`}>{fmtEUR(spendOf(c), 2)}</span> },
     { key: 'status', header: 'Status', sort: (c) => c.status, render: (c) => <StatusBadge status={c.status} /> },
     { key: 'dates', header: 'Dates', sort: (c) => c.startDate, render: (c) => <div className="mono xs" style={{ lineHeight: 1.5 }}><div>{fmtDateShort(c.startDate)}</div><div className="muted">→ {fmtDateShort(c.endDate)}</div></div> },
     { key: 'act', header: '', width: 44, render: (c) => <div onClick={(e) => e.stopPropagation()}>{actionMenu(c)}</div> },
@@ -114,7 +114,7 @@ export default function Campaigns() {
         <Stat label="Scheduled" value={fmtInt(summary.scheduled)} foot={`${counts.Draft ?? 0} drafts awaiting launch`} onClick={() => setTab('Scheduled')} />
         <Stat label="Leads in campaigns" value={fmtCompact(summary.leads)} foot={`${fmtPct(pctOf(summary.attempted, summary.leads), 0)} attempted`} />
         <Stat label="Qualified leads" value={fmtInt(summary.qualified)} foot={<span className="green">{fmtPct(pctOf(summary.qualified, summary.attempted))} of attempted</span>} onClick={() => nav('/qualified')} />
-        <Stat label="Calling spend" value={fmtGBP(summary.spend)} foot={`${fmtCompact(summary.minutes)} minutes · est.`} onClick={() => nav('/analytics?tab=cost')} />
+        <Stat label="Calling spend" value={fmtEUR(summary.spend)} foot={`${fmtCompact(summary.minutes)} minutes · est.`} onClick={() => nav('/analytics?tab=cost')} />
       </div>
 
       <Tabs value={tab} onChange={setTab} tabs={tabs} />
@@ -150,7 +150,7 @@ export default function Campaigns() {
                       <Mini label="Connected" v={fmtInt(c.connected)} />
                       <Mini label="Warm" v={fmtInt(c.warm)} />
                       <Mini label="Qualified" v={fmtInt(c.qualified)} color={CHART.green} />
-                      <Mini label="Spend" v={fmtGBP(spendOf(c))} />
+                      <Mini label="Spend" v={fmtEUR(spendOf(c))} />
                     </div>
                     <div className="divider" style={{ margin: '14px 0 10px' }} />
                     <div className="row small"><Avatar initials={agent?.initials} color={agent?.color} size="sm" agent /><span className="subtle truncate grow">{agent?.name} · {c.segment}</span><span className="mono xs muted">{fmtInt(c.minutes)} min</span></div>

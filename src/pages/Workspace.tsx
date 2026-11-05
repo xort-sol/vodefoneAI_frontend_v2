@@ -11,7 +11,7 @@ import {
 } from '../components/ui';
 import type { Lead, LeadStatus } from '../data/types';
 import { DAY, NOW, startOfDay } from '../data/seed';
-import { fmtDateShort, fmtDateTime, fmtGBP, fmtInt, fmtPct, fmtRelative, fmtTime } from '../lib/format';
+import { fmtDateShort, fmtDateTime, fmtEUR, fmtInt, fmtPct, fmtRelative, fmtTime } from '../lib/format';
 import { PageFix, ScheduleModal, isToday, useCallsByLead, useReps } from './leads/shared';
 import { HandoverDrawer, SaleOutcomeModal, SimDialModal } from './leads/Handover';
 
@@ -168,7 +168,7 @@ export default function Workspace() {
             <KpiCard label="Today’s follow-ups" icon={<Clock size={13} />} value={fmtInt(todayCount)} prevLabel={`${todayAppts.length} appointments · ${todayTasks.filter((t) => !t.done).length} tasks`} onClick={() => setTab('followups')} />
             <KpiCard label="Upcoming appointments" icon={<CalendarClock size={13} />} value={fmtInt(upcoming.length)} prevLabel={upcoming[0] ? `next ${fmtRelative(upcoming[0].start)}` : 'none booked'} onClick={() => setTab('appointments')} />
             <KpiCard label="Overdue tasks" icon={<AlertTriangle size={13} />} value={<span className={overdue.length ? 'red' : ''}>{fmtInt(overdue.length)}</span>} prevLabel={overdue[0] ? `oldest ${fmtRelative(overdue[0].due)}` : 'all on track'} onClick={() => setTab('overdue')} />
-            <KpiCard label="Converted sales" icon={<BadgeCheck size={13} />} value={fmtInt(converted.length)} prevLabel={`${fmtGBP(revenue)} contract value`} onClick={() => setTab('converted')} />
+            <KpiCard label="Converted sales" icon={<BadgeCheck size={13} />} value={fmtInt(converted.length)} prevLabel={`${fmtEUR(revenue)} contract value`} onClick={() => setTab('converted')} />
             <KpiCard label="Conversion rate" icon={<Percent size={13} />} value={fmtPct(convRate)} prevLabel={`${converted.length} of ${mine.length} handovers`} />
           </div>
           <div className="grid g-main-side" style={{ marginBottom: 16 }}>
@@ -257,10 +257,10 @@ export default function Workspace() {
               { key: 'name', header: 'Customer', render: (l) => <div><div className="cell-primary">{l.name}</div><div className="cell-sub mono">{l.id}</div></div>, sort: (l) => l.name },
               { key: 'product', header: 'Product', render: (l) => app.productById.get(l.productInterest)?.name, sort: (l) => app.productById.get(l.productInterest)?.name ?? '' },
               { key: 'type', header: 'Type', render: (l) => <span className="small">{l.customerType}</span> },
-              { key: 'value', header: 'Contract value', align: 'right', render: (l) => { const p = app.productById.get(l.productInterest); return <span className="mono">{p ? fmtGBP(p.monthlyPrice * p.contractMonths) : '—'}</span>; }, sort: (l) => { const p = app.productById.get(l.productInterest); return p ? p.monthlyPrice * p.contractMonths : 0; } },
+              { key: 'value', header: 'Contract value', align: 'right', render: (l) => { const p = app.productById.get(l.productInterest); return <span className="mono">{p ? fmtEUR(p.monthlyPrice * p.contractMonths) : '—'}</span>; }, sort: (l) => { const p = app.productById.get(l.productInterest); return p ? p.monthlyPrice * p.contractMonths : 0; } },
               { key: 'when', header: 'Qualified', render: (l) => <span className="small">{fmtRelative(l.lastCallAt)}</span>, sort: (l) => +new Date(l.lastCallAt ?? 0) },
             ]}
-            footerExtra={<span className="mono">Total {fmtGBP(revenue)}</span>} />
+            footerExtra={<span className="mono">Total {fmtEUR(revenue)}</span>} />
         </Card>
       )}
 

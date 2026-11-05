@@ -5,6 +5,7 @@ import {
   ArrowLeft, ArrowRight, BadgeCheck, Clock, Copy, Download, Pause, Pencil, PhoneCall, PhoneIncoming, Play, PoundSterling, Square, Target, Users, Megaphone, Timer, Flame,
 } from 'lucide-react';
 import { useApp, STAGES } from '../store/store';
+import { callerLabel } from '../live/liveCalls';
 import {
   Avatar, Badge, Button, Card, ChartTip, CHART, DataTable, EmptyState, KpiCard, KV, Legend, PageHeader, Progress, ScoreBar, Segmented, SimBadge, StatusBadge, Tabs, type Column,
 } from '../components/ui';
@@ -22,6 +23,7 @@ const OUTCOME_COLORS: Record<string, string> = {
 export default function CampaignDetail() {
   const { id = '' } = useParams();
   const app = useApp(); const nav = useNavigate();
+  const isLive = app.mode === 'live';
   const [sp, setSp] = useSearchParams();
   const tab = (sp.get('tab') as Tab) || 'performance';
   const setTab = (t: Tab) => { const n = new URLSearchParams(sp); if (t === 'performance') n.delete('tab'); else n.set('tab', t); setSp(n, { replace: true }); };
@@ -123,7 +125,7 @@ export default function CampaignDetail() {
         actions={statusActions}
       />
 
-      {c.status === 'Paused' && <div className="banner warn" style={{ marginBottom: 16 }}><Pause />This campaign is paused — no new simulated calls will be placed until it is resumed.</div>}
+      {c.status === 'Paused' && <div className="banner warn" style={{ marginBottom: 16 }}><Pause />This campaign is paused — no new {isLive ? '' : 'simulated '}calls will be placed until it is resumed.</div>}
       {c.status === 'Scheduled' && <div className="banner info" style={{ marginBottom: 16 }}><Clock />Scheduled to start {fmtDate(c.startDate)} at {c.schedule.start}. {fmtInt(c.totalLeads)} leads are queued.</div>}
       {c.status === 'Draft' && <div className="banner info" style={{ marginBottom: 16 }}><Pencil />Draft — review the configuration and launch when ready.</div>}
 
@@ -219,16 +221,16 @@ export default function CampaignDetail() {
         </div>
 
         <div className="grid g-main-side">
-          <Card title={<span className="row gap-4">Live calls <SimBadge /></span>} sub="In-progress simulated calls for this campaign" actions={<Button size="xs" variant="ghost" iconRight={<ArrowRight size={12} />} onClick={() => nav('/calling')}>Calling centre</Button>}>
+          <Card title={<span className="row gap-4">Live calls <SimBadge /></span>} sub={`In-progress ${isLive ? '' : 'simulated '}calls for this campaign`} actions={<Button size="xs" variant="ghost" iconRight={<ArrowRight size={12} />} onClick={() => nav('/calling')}>Calling centre</Button>}>
             <div className="list">
               {live.map((lc) => {
                 const l = app.leadById.get(lc.leadId);
                 return (
                   <div key={lc.id} className="list-item clickable" onClick={() => nav(`/calling?call=${lc.id}`)}>
                     <span className="live-dot" />
-                    <div className="grow"><div className="cell-primary truncate">{l?.name}</div><div className="cell-sub">{STAGES[lc.stage]} · intent {lc.intent}</div></div>
-                    <div style={{ width: 90 }} className="desktop-only"><Progress value={lc.progress} color={CHART.green} /></div>
-                    <StatusBadge status={lc.sentiment} dot={false} />
+                    <div className="grow"><div className="cell-primary truncate">{callerLabel(lc, l)}</div>{!isLive && <div className="cell-sub">{STAGES[lc.stage]} · intent {lc.intent}</div>}</div>
+                    {!isLive && <div style={{ width: 90 }} className="desktop-only"><Progress value={lc.progress} color={CHART.green} /></div>}
+                    {!isLive && <StatusBadge status={lc.sentiment} dot={false} />}
                     <span className="mono small tnum" style={{ width: 40, textAlign: 'right' }}>{fmtDur(lc.elapsed * 4)}</span>
                   </div>
                 );

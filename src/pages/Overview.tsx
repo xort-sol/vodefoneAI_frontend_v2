@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { AlertTriangle, ArrowRight, PhoneOff, Plus, Radio, RefreshCw, Users, PhoneCall, PhoneIncoming, Flame, BadgeCheck, Percent, Clock, PoundSterling, Timer, CalendarDays, Activity } from 'lucide-react';
 import { useApp, STAGES } from '../store/store';
+import { callerLabel } from '../live/liveCalls';
 import { Badge, Button, Card, ChartTip, CHART, KpiCard, Legend, PageHeader, ScoreBar, StatusBadge, Avatar, SimBadge, Segmented, Progress, ExportMenu } from '../components/ui';
 import { DateRangePicker, useRangeState } from '../components/DateRange';
 import { bucketSeries, callsIn, dailySeries, makeRange, previousRange, summarize, leadBuckets, inRange } from '../lib/metrics';
@@ -13,6 +14,7 @@ import { DAY, NOW, startOfDay } from '../data/seed';
 
 export default function Overview() {
   const app = useApp(); const nav = useNavigate();
+  const isLive = app.mode === 'live';
   const rs = useRangeState('30d');
   const [bucket, setBucket] = useState<'day' | 'week' | 'month'>('day');
   const { range } = rs;
@@ -342,7 +344,7 @@ export default function Overview() {
             </div>
           </div>
         </Card>
-        <Card title="Live calling activity" sub="Simulated in real time" actions={<Button size="xs" variant="ghost" iconRight={<ArrowRight size={12} />} onClick={() => nav('/calling')}>Calling centre</Button>}>
+        <Card title="Live calling activity" sub={isLive ? 'Calls in progress' : 'Simulated in real time'} actions={<Button size="xs" variant="ghost" iconRight={<ArrowRight size={12} />} onClick={() => nav('/calling')}>Calling centre</Button>}>
           <div className="list">
             {app.live.slice(0, 6).map((lc) => {
               const l = app.leadById.get(lc.leadId); const a = app.agentById.get(lc.agentId);
@@ -350,8 +352,8 @@ export default function Overview() {
                 <div key={lc.id} className="list-item clickable" onClick={() => nav(`/calling?call=${lc.id}`)}>
                   <span className="live-dot" />
                   <div className="grow">
-                    <div className="row between"><span className="cell-primary truncate">{l?.name}</span><span className="mono small tnum">{fmtDur(lc.elapsed * 4)}</span></div>
-                    <div className="row between"><span className="cell-sub truncate">{a?.name} · {STAGES[lc.stage]}</span><StatusBadge status={lc.sentiment} dot={false} /></div>
+                    <div className="row between"><span className="cell-primary truncate">{callerLabel(lc, l)}</span><span className="mono small tnum">{fmtDur(lc.elapsed * 4)}</span></div>
+                    {isLive ? a && <div className="cell-sub truncate">{a.name}</div> : <div className="row between"><span className="cell-sub truncate">{a?.name} · {STAGES[lc.stage]}</span><StatusBadge status={lc.sentiment} dot={false} /></div>}
                   </div>
                 </div>
               );

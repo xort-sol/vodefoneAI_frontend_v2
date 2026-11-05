@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { act, cleanup, renderHook } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import type { Call, Campaign, Lead } from '../data/types';
@@ -10,9 +11,13 @@ vi.mock('../live/repo', () => ({
   loadMe: vi.fn(), loadAll: vi.fn(), onAuthChange: vi.fn(), saveLead: vi.fn(), saveLeads: vi.fn(), insertLead: vi.fn(), insertLeads: vi.fn(),
   addNote: vi.fn(), insertCampaign: vi.fn(), saveCampaign: vi.fn(), insertSuppression: vi.fn(), deleteSuppression: vi.fn(), loadTranscript: vi.fn(),
 }));
+vi.mock('../live/liveCalls', async (actual) => ({ ...(await actual<typeof import('../live/liveCalls')>()), fetchLiveRooms: vi.fn(async () => []) }));
 
 import * as repo from '../live/repo';
+import { fetchLiveRooms } from '../live/liveCalls';
 import { AppProvider, useApp } from './store';
+import { ConfirmProvider } from '../components/ui';
+import Calling from '../pages/Calling';
 import { campaignStats } from '../live/adapters';
 import { dailySeries } from '../lib/metrics';
 import { createCampaign } from '../pages/campaigns/shared';
@@ -295,6 +300,20 @@ describe('live mode', () => {
 
 describe('demo mode', () => {
   beforeEach(() => { h.mode = 'demo'; });
+
+  it('the Calling page keeps its simulation and every supervisor control, and never polls', async () => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
+    render(<MemoryRouter initialEntries={['/calling']}><AppProvider><ConfirmProvider><Calling /></ConfirmProvider></AppProvider></MemoryRouter>);
+    await tick(0);
+    expect(screen.getByText('Simulation mode.')).toBeTruthy();
+    expect(screen.getAllByText('Buying intent').length).toBeGreaterThan(0);
+    fireEvent.click(document.querySelector('.option-card[role=button]')!);
+    await tick(0);
+    for (const name of ['Listen in', 'Human takeover', 'End call', 'Send']) expect(screen.getByRole('button', { name })).toBeTruthy();
+    expect(screen.getByLabelText('Call outcome')).toBeTruthy();
+    expect(fetchLiveRooms).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
 
   it('is unchanged: seed data, simulation, stored role, no repo calls', async () => {
     localStorage.setItem('vf-role', 'Sales Manager');

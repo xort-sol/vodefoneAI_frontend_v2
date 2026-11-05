@@ -6,10 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../live/client', () => ({ getMode: () => 'live', isLiveConfigured: () => true, setMode: vi.fn(), signInLive: vi.fn(), supabase: {} }));
 vi.mock('../live/repo', () => ({
-  loadMe: vi.fn(), loadAll: vi.fn(), onAuthChange: vi.fn(() => () => {}), loadTranscript: vi.fn(async () => []), saveLead: vi.fn(),
+  loadMe: vi.fn(), loadAll: vi.fn(), onAuthChange: vi.fn(() => () => {}), loadTranscript: vi.fn(async () => []), saveLead: vi.fn(), saveCampaign: vi.fn(), insertSuppression: vi.fn(async () => {}),
 }));
+vi.mock('../live/liveCalls', async (actual) => ({ ...(await actual<typeof import('../live/liveCalls')>()), fetchLiveRooms: vi.fn(), joinCall: vi.fn() }));
 
 import * as repo from '../live/repo';
+import { fetchLiveRooms, joinCall } from '../live/liveCalls';
 import { toCall, toCampaign, toLead, toMember } from '../live/adapters';
 import { AppProvider } from '../store/store';
 import { ConfirmProvider } from '../components/ui';
@@ -27,6 +29,8 @@ import Qualified from './Qualified';
 import CallHistory from './CallHistory';
 
 const r = vi.mocked(repo);
+const rooms = vi.mocked(fetchLiveRooms);
+const join = vi.mocked(joinCall);
 const iso = new Date().toISOString();
 const member = { id: 'u1', email: 'a@b.ie', full_name: 'Mary Manager', role: 'admin', created_at: iso };
 // A bare lead, a campaign with no refs, and calls pointing at a lead and a campaign that are not loaded
@@ -61,6 +65,8 @@ beforeEach(() => {
   vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
   window.scrollTo = () => {};
   r.loadMe.mockResolvedValue(member);
+  rooms.mockReset(); rooms.mockResolvedValue([]);
+  join.mockReset(); join.mockResolvedValue(() => {});
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
@@ -121,5 +127,173 @@ describe('Live review fixes', () => {
     expect(r.saveLead).toHaveBeenCalledTimes(1);
     expect(onSaved.mock.calls[0][0].phone).toBe(dup);
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+describe('real calls on the Calling page', () => {
+  const OUTAGE = 'Live call service is unavailable. Saved calls and leads are not affected.';
+  const room = { room: 'call-353871234567-1', phone: '+353871234567', started_at: Math.floor(Date.now() / 1000) - 65 };
+  const tick = (ms = 3000) => act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+  const calling = (url = '/calling') => show(url, <Calling />, '/calling');
+  const rita = () => toLead({ id: 1, name: 'Rita Ryan', phone: '+353 87 123 4567', status: 'new', campaign_id: 2, created_at: iso }, []);
+  const running = () => toCampaign({ id: 2, name: 'Spring', status: 'running', created_at: iso, agent_ref: 'no-such-agent' }, {});
+
+  beforeEach(() => r.loadAll.mockResolvedValue({ ...empty(), leads: [rita()], campaigns: [running()] }));
+
+  it('shows a running room by lead name, with no simulated figures', async () => {
+    rooms.mockResolvedValue([room]);
+    await calling(); await tick();
+    expect(screen.getByText('Rita Ryan')).toBeTruthy();
+    expect(screen.queryByText('Buying intent')).toBeNull();
+    expect(screen.queryByText('Qualification')).toBeNull();
+    expect(screen.queryByText('Dialling')).toBeNull();
+    expect(screen.queryByText(/Simulation mode/)).toBeNull();
+    expect(document.body.textContent).not.toMatch(/simulated/i);
+  });
+
+  it('falls back to the phone, then the room name, when no lead matches', async () => {
+    rooms.mockResolvedValue([{ ...room, phone: '+353860000000' }, { room: 'call-odd', phone: null, started_at: room.started_at }]);
+    await calling(); await tick();
+    expect(screen.getAllByText('+353860000000').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('call-odd').length).toBeGreaterThan(0);
+  });
+
+  it('an API failure sets liveError and leaves saved data alone', async () => {
+    rooms.mockResolvedValueOnce([room]).mockRejectedValue(new Error('down'));
+    r.saveLead.mockClear();
+    await calling(); await tick(); await tick();
+    expect(screen.getByText(OUTAGE)).toBeTruthy();
+    expect(screen.getAllByText('Rita Ryan').length).toBeGreaterThan(0);
+    expect(r.saveLead).not.toHaveBeenCalled();
+  });
+
+  it('liveError clears on the next successful poll', async () => {
+    rooms.mockRejectedValueOnce(new Error('down')).mockResolvedValue([]);
+    await calling(); await tick(0);
+    expect(screen.getByText(OUTAGE)).toBeTruthy();
+    await tick();
+    expect(screen.queryByText(OUTAGE)).toBeNull();
+  });
+
+  it('a slow request is never overlapped, and polling stops on unmount', async () => {
+    let finish = (_: never[]) => {};
+    rooms.mockImplementationOnce(() => new Promise((res) => { finish = res; }));
+    await calling(); await tick(10000);
+    expect(rooms).toHaveBeenCalledTimes(1);
+    finish([]); await tick(0); await tick();
+    expect(rooms).toHaveBeenCalledTimes(2);
+    cleanup(); await tick(10000);
+    expect(rooms).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops polling and clears calls on sign-out', async () => {
+    rooms.mockResolvedValue([room]);
+    await calling(); await tick();
+    expect(screen.getAllByText('Rita Ryan').length).toBeGreaterThan(0);
+    r.loadMe.mockResolvedValue(null);
+    await tick(5000);
+    const asked = rooms.mock.calls.length;
+    await tick(10000);
+    expect(rooms).toHaveBeenCalledTimes(asked);
+    expect(screen.queryByText('Rita Ryan')).toBeNull();
+  });
+
+  it('an analyst, whom the API refuses, sees no outage', async () => {
+    r.loadMe.mockResolvedValue({ ...member, role: 'analyst' });
+    await calling(); await tick();
+    expect(rooms).not.toHaveBeenCalled();
+    expect(screen.queryByText(OUTAGE)).toBeNull();
+  });
+
+  it('the drawer streams lines, updates a segment in place, and survives polling', async () => {
+    rooms.mockResolvedValue([room]);
+    await calling(`/calling?call=${room.room}`); await tick(0); await tick(0);
+    expect(join).toHaveBeenCalledTimes(1);
+    expect(join.mock.calls[0][0]).toBe(room.room);
+    expect(join.mock.calls[0][2]).toBe(false);
+    const onLine = join.mock.calls[0][1];
+    act(() => {
+      onLine({ t: room.started_at + 3, speaker: 'AI', text: 'Hi' }, 'a');
+      onLine({ t: room.started_at + 3, speaker: 'AI', text: 'Hi Rita' }, 'a');
+      onLine({ t: room.started_at + 5, speaker: 'Customer', text: 'Hello?' }, 'b');
+    });
+    await tick();
+    expect(screen.queryByText('Hi')).toBeNull();
+    expect(screen.getByText('Hi Rita')).toBeTruthy();
+    expect(screen.getByText('Hello?')).toBeTruthy();
+    expect(screen.getByText('0:03')).toBeTruthy();
+  });
+
+  it('the drawer has no whisper, takeover, end or outcome controls', async () => {
+    rooms.mockResolvedValue([room]);
+    await calling(`/calling?call=${room.room}`); await tick(0); await tick(0);
+    expect(screen.getByRole('button', { name: 'Listen in' })).toBeTruthy();
+    for (const hidden of ['Human takeover', 'End call', 'Send']) expect(screen.queryByRole('button', { name: hidden })).toBeNull();
+    expect(screen.queryByText('Whisper to AI')).toBeNull();
+    expect(screen.queryByLabelText('Call outcome')).toBeNull();
+  });
+
+  it('Listen rejoins with audio, and every join is left when the drawer unmounts', async () => {
+    const leaves = [vi.fn(), vi.fn()];
+    join.mockResolvedValueOnce(leaves[0]).mockResolvedValueOnce(leaves[1]);
+    rooms.mockResolvedValue([room]);
+    await calling(`/calling?call=${room.room}`); await tick(0); await tick(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Listen in' }));
+    await tick(0);
+    expect(leaves[0]).toHaveBeenCalled();
+    expect(join.mock.calls[1][2]).toBe(true);
+    expect(leaves[1]).not.toHaveBeenCalled();
+    cleanup();
+    expect(leaves[1]).toHaveBeenCalled();
+  });
+
+  it('leaves the room when the call ends, and a join that lands after closing is left at once', async () => {
+    const leave = vi.fn();
+    let joined = (_: () => void) => {};
+    join.mockImplementationOnce(() => new Promise((res) => { joined = res; }));
+    rooms.mockResolvedValueOnce([room]).mockResolvedValue([]);
+    await calling(`/calling?call=${room.room}`); await tick(0); await tick(0);
+    await tick();
+    expect(screen.getByText(/This call has ended/)).toBeTruthy();
+    joined(leave); await tick(0);
+    expect(leave).toHaveBeenCalled();
+  });
+
+  it('a failed join tells the user and does not crash', async () => {
+    join.mockRejectedValue(new Error('no route'));
+    rooms.mockResolvedValue([room]);
+    await calling(`/calling?call=${room.room}`); await tick(0); await tick(0);
+    expect(screen.getByText('Could not connect to this call')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Listen in' })).toBeTruthy();
+  });
+
+  it('pause sets every running campaign to paused, and only those', async () => {
+    r.saveCampaign.mockResolvedValue(undefined); r.saveCampaign.mockClear();
+    r.loadAll.mockResolvedValue({ ...empty(), campaigns: [running(), toCampaign({ id: 3, name: 'Draft', status: 'draft', created_at: iso }, {})] });
+    await calling(); await tick(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Pause all calling' }));
+    await tick(0);
+    expect(r.saveCampaign.mock.calls).toEqual([['2', { status: 'paused' }]]);
+  });
+
+  it('Overview and the campaign page name a real call and invent nothing about it', async () => {
+    rooms.mockResolvedValue([room, { room: 'call-odd', phone: null, started_at: room.started_at }]);
+    await show('/', <Overview />, '/'); await tick();
+    expect(screen.getAllByText('Rita Ryan').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('call-odd').length).toBeGreaterThan(0);
+    expect(document.body.textContent).not.toContain('Dialling');
+    cleanup();
+    await show('/campaigns/2', <CampaignDetail />, '/campaigns/:id'); await tick();
+    expect(document.body.textContent).not.toContain('intent 0');
+  });
+
+  it('suppressing the number of a real call does not fake an ending', async () => {
+    rooms.mockResolvedValue([room]);
+    await calling(); await tick();
+    fireEvent.change(screen.getByPlaceholderText('+353 87 123 4567'), { target: { value: '+353 87 123 4567' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add to suppression list' }));
+    await tick(0);
+    expect(document.body.textContent).not.toContain('live call ended');
+    expect(screen.getAllByText('Rita Ryan').length).toBeGreaterThan(0);
   });
 });

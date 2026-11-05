@@ -95,6 +95,7 @@ export interface TranscriptLine {
   t: number; // seconds offset
   speaker: 'AI' | 'Customer' | 'System';
   text: string;
+  segmentId?: string; // Live calls: the LiveKit segment this line shows
   sentiment?: Sentiment;
   flag?: 'objection' | 'question' | 'intent' | 'pricing' | 'unanswered';
 }

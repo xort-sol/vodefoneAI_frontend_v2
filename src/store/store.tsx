@@ -6,6 +6,7 @@ import type {
 } from '../data/types';
 import { getMode } from '../live/client';
 import { campaignToDb, leadInsertRow, leadToDb, toMember, toRole } from '../live/adapters';
+import { fetchLiveRooms, roomToLiveCall } from '../live/liveCalls';
 import * as repo from '../live/repo';
 
 // ---------------- RBAC ----------------
@@ -28,7 +29,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
 // ---------------- Live (simulated) calls ----------------
 export const STAGES = ['Dialling', 'Compliance check', 'Introduction', 'Identification', 'Needs assessment', 'Product pitch', 'Objection handling', 'Qualification', 'Booking', 'Wrap-up'] as const;
 export interface LiveCall {
-  id: string; leadId: string; campaignId: string; agentId: string; startedAt: number;
+  id: string; phone?: string; leadId: string; campaignId: string; agentId: string; startedAt: number;
   stage: number; elapsed: number; sentiment: 'Positive' | 'Neutral' | 'Negative'; intent: number; progress: number;
   lines: TranscriptLine[]; plannedOutcome: CallOutcome; plannedDuration: number;
   whisper: boolean; takenOver: boolean; monitoring: boolean;
@@ -79,7 +80,7 @@ const initialSettings: Settings = {
 };
 
 interface Ctx extends State {
-  mode: 'live' | 'demo'; loadError: string | null;
+  mode: 'live' | 'demo'; loadError: string | null; liveError: string | null;
   role: Role; setRole: (r: Role) => void; can: (p: Permission) => boolean; me: TeamMember;
   toast: (title: string, desc?: string, kind?: Toast['kind']) => void; toasts: Toast[]; dismissToast: (id: number) => void;
   updateLead: (id: string, patch: Partial<Lead>) => void; updateLeads: (ids: string[], patch: Partial<Lead>) => Promise<boolean>;
@@ -94,7 +95,7 @@ interface Ctx extends State {
   addSuppression: (s: Omit<Suppression, 'id'>) => void; removeSuppression: (id: string) => void;
   updateDeletion: (id: string, patch: Partial<DeletionRequest>) => void;
   updateSettings: (patch: Partial<Settings>) => void;
-  updateLive: (id: string, patch: Partial<LiveCall>) => void; endLive: (id: string, outcome?: CallOutcome) => void;
+  updateLive: (id: string, patch: Partial<LiveCall> | ((lc: LiveCall) => Partial<LiveCall>)) => void; endLive: (id: string, outcome?: CallOutcome) => void;
   audit: (action: string, target: string, category: AuditEntry['category']) => void;
   // lookups
   leadById: Map<string, Lead>; campaignById: Map<string, Campaign>; agentById: Map<string, Agent>; productById: Map<string, Product>; memberById: Map<string, TeamMember>;
@@ -128,6 +129,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     ...(live ? LIVE_EMPTY : {}),
   }));
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [liveError, setLiveError] = useState<string | null>(null);
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof repo.loadMe>>>(null);
   const [transcripts, setTranscripts] = useState<Record<string, TranscriptLine[]>>({});
   const transcriptsAsked = useRef(new Set<string>());
@@ -209,7 +211,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const saved = async (op: () => Promise<void>) => (await write(() => op().then(() => true))) === true;
   const writeLeads = (ids: string[], patch: Partial<Lead>) => { const row = leadToDb(patch); return Object.keys(row).length ? saved(() => repo.saveLeads(ids, row)) : Promise.resolve(true); };
 
-  const api: Omit<Ctx, keyof State | 'mode' | 'loadError' | 'role' | 'setRole' | 'can' | 'me' | 'toast' | 'toasts' | 'dismissToast' | 'audit' | 'leadById' | 'campaignById' | 'agentById' | 'productById' | 'memberById' | 'eligibility'> = {
+  const api: Omit<Ctx, keyof State | 'mode' | 'loadError' | 'liveError' | 'role' | 'setRole' | 'can' | 'me' | 'toast' | 'toasts' | 'dismissToast' | 'audit' | 'leadById' | 'campaignById' | 'agentById' | 'productById' | 'memberById' | 'eligibility'> = {
     updateLead: (id, patch) => { mapUpdate('leads', id, patch); if (live) writeLead(id, patch); },
     updateLeads: async (ids, patch) => { const set = new Set(ids); setState((s) => ({ ...s, leads: s.leads.map((l) => (set.has(l.id) ? { ...l, ...patch } : l)) })); return live ? writeLeads(ids, patch) : true; },
     addLead: async (l) => {
@@ -261,7 +263,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     },
     updateDeletion: (id, patch) => mapUpdate('deletionRequests', id, patch),
     updateSettings: (patch) => setState((s) => ({ ...s, settings: { ...s.settings, ...patch } })),
-    updateLive: (id, patch) => setState((s) => ({ ...s, live: s.live.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
+    updateLive: (id, patch) => setState((s) => ({ ...s, live: s.live.map((x) => (x.id === id ? { ...x, ...(typeof patch === 'function' ? patch(x) : patch) } : x)) })),
     endLive: (id, outcome) => setState((s) => finishLive(s, id, outcome)),
     transcriptFor: (c: Call) => {
       if (live) {
@@ -308,8 +310,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => { clearInterval(iv); unsubscribe(); };
   }, [live, refresh]);
 
+  // ---------- Real calls in progress ----------
+  const watchesCalls = live && !!profile?.role && profile.role !== 'analyst'; // the API refuses analysts
+  useEffect(() => {
+    if (!watchesCalls) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try {
+        const rooms = await fetchLiveRooms();
+        if (stopped) return;
+        setState((s) => ({
+          ...s,
+          live: rooms.map((r) => {
+            const lc = roomToLiveCall(r, s.leads, s.campaigns);
+            return { ...lc, lines: s.live.find((x) => x.id === lc.id)?.lines ?? [] };
+          }),
+        }));
+        setLiveError(null);
+      } catch (e) {
+        if (stopped) return;
+        setLiveError(errorText(e));
+      }
+      timer = setTimeout(() => void poll(), 3000); // scheduled only after the answer, so slow requests never overlap
+    };
+    void poll();
+    return () => { stopped = true; clearTimeout(timer); setState((s) => ({ ...s, live: [] })); setLiveError(null); };
+  }, [watchesCalls]);
+
   const value: Ctx = {
-    ...state, ...api, mode, loadError, role, setRole, can, me, toast, toasts, dismissToast, audit,
+    ...state, ...api, mode, loadError, liveError, role, setRole, can, me, toast, toasts, dismissToast, audit,
     leadById, campaignById, agentById, productById, memberById, eligibility,
   };
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;

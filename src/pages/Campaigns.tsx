@@ -110,7 +110,7 @@ export default function Campaigns() {
       />
 
       <div className="stat-strip" style={{ gridTemplateColumns: 'repeat(5, minmax(0,1fr))', marginBottom: 20 }}>
-        <Stat label="Active campaigns" value={fmtInt(summary.active)} foot={`${app.live.length} simulated calls in progress`} onClick={() => setTab('Active')} />
+        <Stat label="Active campaigns" value={fmtInt(summary.active)} foot={`${app.live.length} ${app.mode === 'live' ? '' : 'simulated '}calls in progress`} onClick={() => setTab('Active')} />
         <Stat label="Scheduled" value={fmtInt(summary.scheduled)} foot={`${counts.Draft ?? 0} drafts awaiting launch`} onClick={() => setTab('Scheduled')} />
         <Stat label="Leads in campaigns" value={fmtCompact(summary.leads)} foot={`${fmtPct(pctOf(summary.attempted, summary.leads), 0)} attempted`} />
         <Stat label="Qualified leads" value={fmtInt(summary.qualified)} foot={<span className="green">{fmtPct(pctOf(summary.qualified, summary.attempted))} of attempted</span>} onClick={() => nav('/qualified')} />

@@ -454,6 +454,7 @@ function RealCallDrawer({ id, onClose }: { id: string; onClose: () => void }) {
   const ended = !lc;
   const [listening, setListening] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [audio, setAudio] = useState<{ enable?: () => void } | null>(null); // null until the join reports whether audio can play
   const ref = useRef<HTMLDivElement>(null);
 
   // Listening rejoins: audio is decided at join time. Lines stay in the store, so nothing already shown is lost.
@@ -461,8 +462,8 @@ function RealCallDrawer({ id, onClose }: { id: string; onClose: () => void }) {
     if (ended) return;
     let closed = false;
     let leave: (() => void) | undefined;
-    setFailed(false);
-    joinCall(id, (line, segmentId) => app.updateLive(id, (c) => ({ lines: upsertLine(c.lines, { ...line, t: Math.max(0, Math.round(line.t - c.startedAt / 1000)) }, segmentId) })), listening).then(
+    setAudio(null);
+    joinCall(id, (line, segmentId) => app.updateLive(id, (c) => ({ lines: upsertLine(c.lines, { ...line, t: Math.max(0, Math.round(line.t - c.startedAt / 1000)) }, segmentId) })), listening, (enable) => { if (!closed) setAudio({ enable: enable ?? undefined }); }).then(
       (l) => { if (closed) l(); else leave = l; },
       () => { if (!closed) { setFailed(true); setListening(false); } },
     );
@@ -494,12 +495,13 @@ function RealCallDrawer({ id, onClose }: { id: string; onClose: () => void }) {
           <div>
             <div className="row between" style={{ marginBottom: 8 }}>
               <span className="row gap-4 small medium" style={{ color: 'var(--ink)' }}><MessageSquare size={14} />Live transcript</span>
-              {!ended && <Button size="sm" icon={<Ear />} onClick={() => setListening(!listening)}>{listening ? 'Stop listening' : 'Listen in'}</Button>}
+              {!ended && <Button size="sm" icon={<Ear />} onClick={() => { setFailed(false); setListening(!listening); }}>{listening ? 'Stop listening' : 'Listen in'}</Button>}
             </div>
             <div ref={ref} className="scroll-y" style={{ maxHeight: 340, minHeight: 160, border: '1px solid var(--ash)', borderRadius: 10, padding: 14 }}>
               {shown.lines.length ? <Transcript lines={shown.lines} agentName={agent?.name ?? 'AI'} customerName={label} agentColor={agent?.color} /> : <div className="small muted">Waiting for the next line. The transcript starts when you open the call.</div>}
             </div>
-            {listening && !ended && <div className="row xs mt-8" style={{ color: 'var(--sapphire)' }}><Headphones size={12} />Listening silently — the customer and the agent cannot hear you</div>}
+            {listening && !ended && audio?.enable && <div className="row xs mt-8"><Button size="xs" icon={<Headphones />} onClick={audio.enable}>Enable audio</Button><span className="muted">Your browser blocked the call audio.</span></div>}
+            {listening && !ended && audio && !audio.enable && <div className="row xs mt-8" style={{ color: 'var(--sapphire)' }}><Headphones size={12} />Listening silently — the customer and the agent cannot hear you</div>}
           </div>
         </div>
       )}

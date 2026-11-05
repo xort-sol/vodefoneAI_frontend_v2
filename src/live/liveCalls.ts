@@ -47,7 +47,8 @@ export function upsertLine(lines: TranscriptLine[], line: TranscriptLine, segmen
 }
 
 // line.t is Unix seconds: only the caller knows when the call started.
-export async function joinCall(room: string, onLine: (line: TranscriptLine, segmentId: string) => void, listen: boolean): Promise<() => void> {
+// onAudioBlocked (listening only): null once audio can play; otherwise a function to call from a click, the gesture browsers want.
+export async function joinCall(room: string, onLine: (line: TranscriptLine, segmentId: string) => void, listen: boolean, onAudioBlocked?: (enable: (() => void) | null) => void): Promise<() => void> {
   const { serverUrl, participantToken } = await callApi<{ serverUrl: string; participantToken: string }>('/live-token', { method: 'POST', body: JSON.stringify({ room }) });
   const call = new Room();
   // The agent streams its speech as deltas in one stream; the customer's text arrives whole, in a new stream per update. Both share a segment id.
@@ -64,7 +65,9 @@ export async function joinCall(room: string, onLine: (line: TranscriptLine, segm
     } catch { /* leaving cuts the stream off */ }
   });
   const players: HTMLMediaElement[] = [];
+  const reportAudio = () => onAudioBlocked?.(call.canPlaybackAudio ? null : () => { call.startAudio().catch(() => { /* still blocked: the button stays */ }); });
   if (listen) {
+    call.on(RoomEvent.AudioPlaybackStatusChanged, reportAudio);
     call.on(RoomEvent.TrackSubscribed, (track) => {
       if (track.kind !== Track.Kind.Audio) return;
       const player = track.attach();
@@ -73,6 +76,6 @@ export async function joinCall(room: string, onLine: (line: TranscriptLine, segm
     });
   }
   await call.connect(serverUrl, participantToken, { autoSubscribe: listen });
-  if (listen) await call.startAudio().catch(() => { /* blocked autoplay: the transcript still works */ });
+  if (listen) reportAudio();
   return () => { players.forEach((p) => p.remove()); void call.disconnect(); };
 }

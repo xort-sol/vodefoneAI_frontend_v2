@@ -7,22 +7,24 @@ const { fake } = vi.hoisted(() => {
     session: { access_token: 'tok' } as unknown,
     rooms: [] as any[],
     connectError: null as Error | null,
+    audioBlocked: false,
   };
   return { fake };
 });
 vi.mock('./client', () => ({ supabase: { auth: { getSession: async () => ({ data: { session: fake.session } }) } } }));
 vi.mock('livekit-client', () => ({
-  RoomEvent: { TrackSubscribed: 'trackSubscribed' },
+  RoomEvent: { TrackSubscribed: 'trackSubscribed', AudioPlaybackStatusChanged: 'audioPlaybackChanged' },
   Track: { Kind: { Audio: 'audio', Video: 'video' } },
   Room: class {
     handlers: Record<string, (reader: unknown, who: { identity: string }) => Promise<void>> = {};
-    events: Record<string, (track: unknown) => void> = {};
+    events: Record<string, (arg: any) => void> = {};
+    canPlaybackAudio = !fake.audioBlocked;
     connect = vi.fn(async () => { if (fake.connectError) throw fake.connectError; });
     disconnect = vi.fn(async () => {});
     startAudio = vi.fn(async () => {});
     constructor() { fake.rooms.push(this); }
     registerTextStreamHandler(topic: string, h: (reader: unknown, who: { identity: string }) => Promise<void>) { this.handlers[topic] = h; }
-    on(event: string, h: (track: unknown) => void) { this.events[event] = h; return this; }
+    on(event: string, h: (arg: any) => void) { this.events[event] = h; return this; }
   },
 }));
 
@@ -36,7 +38,7 @@ const fetchMock = vi.fn();
 const respond = (body: unknown, status = 200) => fetchMock.mockResolvedValue({ ok: status < 400, status, json: async () => body });
 
 beforeEach(() => {
-  fake.session = { access_token: 'tok' }; fake.rooms = []; fake.connectError = null;
+  fake.session = { access_token: 'tok' }; fake.rooms = []; fake.connectError = null; fake.audioBlocked = false;
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
   vi.stubEnv('VITE_API_URL', 'http://api.test');
@@ -140,6 +142,7 @@ describe('joinCall', () => {
     const { room } = await join(false);
     expect(room.connect.mock.calls[0][2]).toEqual({ autoSubscribe: false });
     expect(room.events.trackSubscribed).toBeUndefined();
+    expect(room.events.audioPlaybackChanged).toBeUndefined();
     expect(room.startAudio).not.toHaveBeenCalled();
   });
   it('plays subscribed audio when listening, and removes it on leaving', async () => {
@@ -150,11 +153,47 @@ describe('joinCall', () => {
     room.events.trackSubscribed({ kind: 'audio', attach: () => audio });
     room.events.trackSubscribed({ kind: 'video', attach: () => { throw new Error('no video'); } });
     expect(append).toHaveBeenCalledWith(audio);
-    expect(room.startAudio).toHaveBeenCalled();
     leave();
     expect(audio.remove).toHaveBeenCalled();
     expect(room.disconnect).toHaveBeenCalled();
   });
+  describe('blocked audio', () => {
+    const listen = async () => {
+      const reports: ((() => void) | null)[] = [];
+      await joinCall('call-1-1', () => {}, true, (enable) => reports.push(enable));
+      return { reports, room: fake.rooms[0] };
+    };
+
+    it('says audio can play when the browser allows it', async () => {
+      const { reports, room } = await listen();
+      expect(reports).toEqual([null]);
+      expect(room.startAudio).not.toHaveBeenCalled();
+    });
+    it('hands back an enable function, and only that click starts audio', async () => {
+      fake.audioBlocked = true;
+      const { reports, room } = await listen();
+      expect(reports).toHaveLength(1);
+      expect(room.startAudio).not.toHaveBeenCalled();
+      reports[0]!();
+      expect(room.startAudio).toHaveBeenCalledTimes(1);
+    });
+    it('follows playback status changes after connecting', async () => {
+      const { reports, room } = await listen();
+      room.canPlaybackAudio = false; room.events.audioPlaybackChanged(false);
+      expect(reports[1]).toBeTypeOf('function');
+      room.canPlaybackAudio = true; room.events.audioPlaybackChanged(true);
+      expect(reports[2]).toBeNull();
+    });
+    it('an enable click the browser refuses does not throw', async () => {
+      fake.audioBlocked = true;
+      const { reports, room } = await listen();
+      room.startAudio.mockRejectedValueOnce(new Error('NotAllowedError'));
+      reports[0]!(); // an uncaught rejection here would fail the run
+      await new Promise((res) => setTimeout(res));
+      expect(room.startAudio).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('rejects when the room cannot be reached', async () => {
     fake.connectError = new Error('no route');
     await expect(joinCall('call-1-1', () => {}, false)).rejects.toThrow('no route');

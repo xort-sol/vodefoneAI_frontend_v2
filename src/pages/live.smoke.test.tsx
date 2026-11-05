@@ -247,6 +247,53 @@ describe('real calls on the Calling page', () => {
     expect(leaves[1]).toHaveBeenCalled();
   });
 
+  describe('Listen in', () => {
+    const LISTENING = /Listening silently/;
+    const openAndListen = async () => {
+      rooms.mockResolvedValue([room]);
+      await calling(`/calling?call=${room.room}`); await tick(0); await tick(0);
+      fireEvent.click(screen.getByRole('button', { name: 'Listen in' }));
+      await tick(0);
+      return join.mock.calls[1][3]!;
+    };
+
+    it('does not claim to be listening before the join reports audio', async () => {
+      await openAndListen();
+      expect(screen.queryByText(LISTENING)).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Enable audio' })).toBeNull();
+    });
+    it('blocked audio offers Enable audio, and only then says Listening', async () => {
+      const report = await openAndListen();
+      const enable = vi.fn();
+      act(() => report(enable));
+      expect(screen.queryByText(LISTENING)).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Enable audio' }));
+      expect(enable).toHaveBeenCalledTimes(1);
+      act(() => report(null));
+      expect(screen.queryByRole('button', { name: 'Enable audio' })).toBeNull();
+      expect(screen.getByText(LISTENING)).toBeTruthy();
+    });
+    it('goes back to Enable audio if playback is blocked later', async () => {
+      const report = await openAndListen();
+      act(() => report(null));
+      act(() => report(vi.fn()));
+      expect(screen.queryByText(LISTENING)).toBeNull();
+      expect(screen.getByRole('button', { name: 'Enable audio' })).toBeTruthy();
+    });
+    it('a failed Listen shows the error, and the next click clears it', async () => {
+      join.mockResolvedValueOnce(() => {}).mockRejectedValueOnce(new Error('no route'));
+      rooms.mockResolvedValue([room]);
+      await calling(`/calling?call=${room.room}`); await tick(0); await tick(0);
+      fireEvent.click(screen.getByRole('button', { name: 'Listen in' }));
+      await tick(0); await tick(0);
+      expect(screen.getByText('Could not connect to this call')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Listen in' })).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Listen in' }));
+      await tick(0);
+      expect(screen.queryByText('Could not connect to this call')).toBeNull();
+    });
+  });
+
   it('leaves the room when the call ends, and a join that lands after closing is left at once', async () => {
     const leave = vi.fn();
     let joined = (_: () => void) => {};

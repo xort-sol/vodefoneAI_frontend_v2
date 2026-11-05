@@ -139,8 +139,8 @@ export function CsvImportModal({ open, onClose }: { open: boolean; onClose: () =
     const rows = checked.filter((c) => c.state === 'valid' && c.lead).map((c) => c.lead!);
     if (!rows.length) return;
     setBusy(true);
-    setTimeout(() => {
-      app.addLeads(rows);
+    setTimeout(async () => {
+      if (!(await app.addLeads(rows))) { setBusy(false); return; }
       app.audit('Imported leads', `${fileName} (${rows.length} rows)`, 'Data');
       app.toast(`${fmtInt(rows.length)} leads imported`, `${counts.duplicate} duplicates, ${counts.suppressed} suppressed and ${counts.invalid} invalid rows skipped`);
       close();

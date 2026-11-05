@@ -1,5 +1,5 @@
 // Pure database-row to screen-model adapters for Live mode. No Supabase calls here.
-import type { Call, CallOutcome, Campaign, Lead, LeadStatus, Role, TeamMember, TranscriptLine } from '../data/types';
+import type { Call, CallOutcome, Campaign, Lead, LeadStatus, Role, Suppression, TeamMember, TranscriptLine } from '../data/types';
 import { products, initialsOf } from '../data/seed';
 
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -39,11 +39,37 @@ export function toLead(row: Row, notes: Row[]): Lead {
   };
 }
 
+const defined = (o: Row): Row => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
+
+/** Only the columns web users may update; everything else in the patch is dropped. */
+export const leadToDb = (p: Partial<Lead>): Row => defined({
+  name: p.name, email: p.email, city: p.city, customer_type: p.customerType, tags: p.tags, consent: p.consent, archived: p.archived,
+  assigned_to: p.assignedRepId, next_follow_up: p.nextFollowUp, product_ref: p.productInterest, campaign_id: p.campaignId,
+  ...(p.status ? leadStatusPatch(p.status) : {}),
+});
+export const leadInsertRow = (l: Omit<Lead, 'id'>): Row => ({ ...leadToDb(l), phone: l.phone, source: l.source, current_plan: l.currentPlan });
+
 const CAMPAIGN_STATUS: Record<string, Campaign['status']> = {
   draft: 'Draft', approved: 'Scheduled', running: 'Active', paused: 'Paused', done: 'Completed',
 };
 export const campaignStatusToDb = (s: Campaign['status']): string =>
   ({ Draft: 'draft', Scheduled: 'approved', Active: 'running', Paused: 'paused', Completed: 'done', Stopped: 'done' })[s];
+
+export const campaignToDb = (p: Partial<Campaign>): Row => defined({
+  name: p.name, status: p.status && campaignStatusToDb(p.status), product_ref: p.productId, agent_ref: p.agentId, offer_ref: p.offerId,
+  description: p.description, segment: p.segment, start_date: p.startDate, end_date: p.endDate,
+  days: p.schedule?.days, calling_hours_start: p.schedule?.start, calling_hours_end: p.schedule?.end,
+  max_attempts: p.retry?.maxAttempts, retry_hours: p.retry?.intervalHours, concurrency: p.concurrency, daily_cap: p.dailyCap,
+  min_score: p.qualification?.minScore,
+});
+
+export const campaignStats = (calls: Call[]) => ({
+  attempted: new Set(calls.map((c) => c.leadId)).size,
+  connected: calls.filter((c) => c.connected).length,
+  warm: calls.filter((c) => c.outcome === 'Interested').length,
+  qualified: calls.filter((c) => c.outcome === 'Qualified').length,
+  minutes: Math.round(calls.reduce((s, c) => s + c.duration, 0) / 60),
+});
 
 const hhmm = (t: string | null | undefined, d: string) => (t ? t.slice(0, 5) : d);
 export function toCampaign(
@@ -105,3 +131,8 @@ export function toMember(row: Row): TeamMember {
     joined: row.created_at, lastActive: row.created_at,
   };
 }
+
+/** The phone is the primary key, so it doubles as the id. The table stores no name, so the caller supplies one. */
+export const toSuppression = (row: Row, name: string): Suppression => ({
+  id: row.phone, phone: row.phone, name, reason: row.reason ?? 'Customer opt-out', addedAt: row.created_at, addedBy: row.source,
+});

@@ -11,7 +11,7 @@ import {
 } from '../components/ui';
 import { downloadFile, fmtDate, fmtDateTime, fmtDur, fmtDurLong, fmtEUR, fmtRelative, fmtTime } from '../lib/format';
 import { NOW, DAY } from '../data/seed';
-import type { Call, TranscriptLine } from '../data/types';
+import type { Call, Lead, TranscriptLine } from '../data/types';
 import { getNavList, PRESET_TAGS, QUAL_TONE, qualBreakdown, qualStatus, TAG_TONE, useAnnotation } from './conversations/state';
 
 const LAYOUT_CSS = `
@@ -288,7 +288,7 @@ function Detail({ call }: { call: Call }) {
         </div>
       </div>
 
-      {escalateOpen && lead && <EscalateModal call={call} onClose={() => setEscalateOpen(false)} onDone={(repId) => setAnn({ escalated: repId })} />}
+      {escalateOpen && lead && <EscalateModal call={call} lead={lead} onClose={() => setEscalateOpen(false)} onDone={(repId) => setAnn({ escalated: repId })} />}
     </>
   );
 }
@@ -432,6 +432,7 @@ function Insights({ call, lines, onSeek }: { call: Call; lines: TranscriptLine[]
         ) : <div className="small muted">The agent answered every question within its approved knowledge.</div>}
       </Card>
 
+      {breakdown.length > 0 && (
       <Card title="Qualification score" actions={<Badge tone={QUAL_TONE[qs]}>{qs}</Badge>}>
         <div className="row between" style={{ alignItems: 'baseline' }}>
           <span className="kpi-value">{call.score}<span className="small muted"> / 100</span></span>
@@ -447,6 +448,7 @@ function Insights({ call, lines, onSeek }: { call: Call; lines: TranscriptLine[]
           ))}
         </div>
       </Card>
+      )}
     </>
   );
 }
@@ -537,9 +539,8 @@ function Annotations({ call }: { call: Call }) {
 }
 
 /* ---------- escalate modal ---------- */
-function EscalateModal({ call, onClose, onDone }: { call: Call; onClose: () => void; onDone: (repId: string) => void }) {
+function EscalateModal({ call, lead, onClose, onDone }: { call: Call; lead: Lead; onClose: () => void; onDone: (repId: string) => void }) {
   const app = useApp();
-  const lead = app.leadById.get(call.leadId)!;
   const reps = app.team.filter((t) => t.role === 'Sales Representative');
   const suggested = reps.find((r) => r.products.includes(call.productId) && r.status === 'Available') ?? reps[0];
   const [repId, setRepId] = useState(lead.assignedRepId ?? suggested?.id ?? '');
@@ -549,7 +550,8 @@ function EscalateModal({ call, onClose, onDone }: { call: Call; onClose: () => v
 
   const submit = () => {
     if (!repId) { setErr('Choose a sales representative'); return; }
-    const rep = app.memberById.get(repId)!;
+    const rep = app.memberById.get(repId);
+    if (!rep) { setErr('Choose a sales representative'); return; }
     app.upsertTask({ id: `TK-${Date.now() % 1000000}`, leadId: lead.id, repId, title: `Escalated conversation ${call.id}: ${note.slice(0, 80)}`, due: new Date(NOW.getTime() + (priority === 'High' ? 0.5 : 1) * DAY).toISOString(), priority, done: false });
     app.updateLead(lead.id, { assignedRepId: repId });
     app.audit('Escalated conversation to rep', `${call.id} → ${rep.name}`, 'Data');

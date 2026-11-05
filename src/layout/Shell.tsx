@@ -261,7 +261,7 @@ export function Shell() {
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('vf-collapsed') === '1'; } catch { return false; } });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [search, setSearch] = useState(false);
-  const loc = useLocation();
+  const loc = useLocation(); const app = useApp();
   useEffect(() => { try { localStorage.setItem('vf-collapsed', collapsed ? '1' : '0'); } catch { /* */ } }, [collapsed]);
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setSearch(true); } };
@@ -274,7 +274,10 @@ export function Shell() {
       {mobileOpen && <div className="drawer-overlay" style={{ zIndex: 25 }} onClick={() => setMobileOpen(false)} />}
       <div className="main">
         <Topbar onMenu={() => setMobileOpen(true)} onSearch={() => setSearch(true)} />
-        <main className="content"><Outlet /></main>
+        <main className="content">
+          {app.loadError && <div className="banner warn" role="alert" style={{ marginBottom: 16 }}>{app.loadError}</div>}
+          <Outlet />
+        </main>
       </div>
       <CommandPalette open={search} onClose={() => setSearch(false)} />
       <Toasts />

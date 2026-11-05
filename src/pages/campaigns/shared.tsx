@@ -38,7 +38,7 @@ export function callsCSV(calls: Call[], app: ReturnType<typeof useApp>) {
     call_id: c.id, started_at: c.startedAt, lead_id: c.leadId, customer: app.leadById.get(c.leadId)?.name ?? '',
     campaign: app.campaignById.get(c.campaignId)?.name ?? c.campaignId, agent: app.agentById.get(c.agentId)?.name ?? c.agentId,
     outcome: c.outcome, connected: c.connected ? 'yes' : 'no', duration_s: c.duration, score: c.score, sentiment: c.sentiment,
-    cost_gbp: c.cost.toFixed(3), failure_reason: c.failureReason ?? '', simulated: 'yes',
+    cost_gbp: c.cost.toFixed(3), failure_reason: c.failureReason ?? '', simulated: c.simulated ? 'yes' : 'no',
   })));
 }
 
@@ -47,19 +47,20 @@ export function useCampaignActions() {
   const app = useApp(); const nav = useNavigate(); const confirm = useConfirm();
   const canManage = app.can('campaigns.manage');
   const denied = 'Your role cannot manage campaigns';
+  const simulated = app.mode === 'live' ? '' : 'simulated ';
   const pause = (c: Campaign) => {
     app.updateCampaign(c.id, { status: 'Paused' });
     const ending = app.live.filter((l) => l.campaignId === c.id && !l.takenOver);
     app.audit('Paused campaign', c.name, 'Campaign');
-    app.toast('Campaign paused', ending.length ? `${ending.length} in-progress simulated calls will finish; no new calls will start.` : `${c.name} will not place new calls.`);
+    app.toast('Campaign paused', ending.length ? `${ending.length} in-progress ${simulated}calls will finish; no new calls will start.` : `${c.name} will not place new calls.`);
   };
   const resume = (c: Campaign) => {
     app.updateCampaign(c.id, { status: 'Active' });
     app.audit(c.status === 'Paused' ? 'Resumed campaign' : 'Launched campaign', c.name, 'Campaign');
-    app.toast(c.status === 'Paused' ? 'Campaign resumed' : 'Campaign launched', `${c.name} is now active (simulated calling).`);
+    app.toast(c.status === 'Paused' ? 'Campaign resumed' : 'Campaign launched', app.mode === 'live' ? `${c.name} is now active.` : `${c.name} is now active (simulated calling).`);
   };
   const stop = async (c: Campaign) => {
-    const ok = await confirm({ title: `Stop “${c.name}”?`, desc: 'Stopping ends the campaign permanently. Queued leads will not be called and the campaign cannot be resumed. In-progress simulated calls will be allowed to finish.', confirmLabel: 'Stop campaign', danger: true });
+    const ok = await confirm({ title: `Stop “${c.name}”?`, desc: `Stopping ends the campaign permanently. Queued leads will not be called and the campaign cannot be resumed. In-progress ${simulated}calls will be allowed to finish.`, confirmLabel: 'Stop campaign', danger: true });
     if (!ok) return;
     app.updateCampaign(c.id, { status: 'Stopped', endDate: new Date().toISOString() });
     app.audit('Stopped campaign', c.name, 'Campaign');

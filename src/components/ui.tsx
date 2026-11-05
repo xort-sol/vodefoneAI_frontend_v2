@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts';
 import { fmtDur } from '../lib/format';
+import { getMode } from '../live/client';
 import type { TranscriptLine } from '../data/types';
 
 /* ---------------- Primitives ---------------- */
@@ -39,6 +40,7 @@ export function StatusBadge({ status, dot = true }: { status: string; dot?: bool
   return <Badge tone={tone} dot={dot} live={status === 'Live'}>{status}</Badge>;
 }
 export function SimBadge({ label = 'Simulated' }: { label?: string }) {
+  if (getMode() === 'live') return null;
   return <span className="sim-badge" title="Demonstration data — no real calls are placed"><FlaskConical size={11} />{label}</span>;
 }
 

@@ -4,6 +4,9 @@ import type {
   Agent, Appointment, AuditEntry, Call, CallOutcome, Campaign, ConsentRecord, DeletionRequest, Lead, LeadStatus,
   Notification, Offer, Product, Role, Suppression, Task, TeamMember, TranscriptLine,
 } from '../data/types';
+import { getMode } from '../live/client';
+import { campaignToDb, leadInsertRow, leadToDb, toMember, toRole } from '../live/adapters';
+import * as repo from '../live/repo';
 
 // ---------------- RBAC ----------------
 export type Permission =
@@ -76,12 +79,13 @@ const initialSettings: Settings = {
 };
 
 interface Ctx extends State {
+  mode: 'live' | 'demo'; loadError: string | null;
   role: Role; setRole: (r: Role) => void; can: (p: Permission) => boolean; me: TeamMember;
   toast: (title: string, desc?: string, kind?: Toast['kind']) => void; toasts: Toast[]; dismissToast: (id: number) => void;
   updateLead: (id: string, patch: Partial<Lead>) => void; updateLeads: (ids: string[], patch: Partial<Lead>) => void;
-  addLead: (l: Omit<Lead, 'id'>) => Lead; addLeads: (ls: Omit<Lead, 'id'>[]) => void; archiveLeads: (ids: string[]) => void; deleteLeads: (ids: string[]) => void;
+  addLead: (l: Omit<Lead, 'id'>) => Promise<Lead | null>; addLeads: (ls: Omit<Lead, 'id'>[]) => Promise<boolean>; archiveLeads: (ids: string[]) => void; deleteLeads: (ids: string[]) => void;
   addNote: (leadId: string, text: string) => void;
-  updateCampaign: (id: string, patch: Partial<Campaign>) => void; addCampaign: (c: Omit<Campaign, 'id'>) => Campaign;
+  updateCampaign: (id: string, patch: Partial<Campaign>) => void; addCampaign: (c: Omit<Campaign, 'id'>) => Promise<Campaign | null>;
   updateAgent: (id: string, patch: Partial<Agent>) => void; addAgent: (a: Omit<Agent, 'id'>) => Agent;
   upsertProduct: (p: Product) => void; upsertOffer: (o: Offer) => void;
   upsertAppointment: (a: Appointment) => void; upsertTask: (t: Task) => void;
@@ -101,19 +105,36 @@ interface Ctx extends State {
 const AppCtx = createContext<Ctx | null>(null);
 export const useApp = () => { const c = useContext(AppCtx); if (!c) throw new Error('no ctx'); return c; };
 
+// What Live mode holds before the first load and after sign-out. Agents, products and offers stay as seed reference data.
+const LIVE_EMPTY = {
+  leads: [], calls: [], campaigns: [], team: [], appointments: [], tasks: [], notifications: [],
+  suppressions: [], deletionRequests: [], auditLog: [], consents: [],
+} satisfies Partial<State>;
+
+const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
 let liveSeq = 990000;
 let callSeqLive = 900000;
 let toastSeq = 1;
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const [mode] = useState(getMode);
+  const live = mode === 'live';
   const [state, setState] = useState<State>(() => ({
     leads: seed.leads, calls: seed.calls, campaigns: seed.campaigns, agents: seed.agents, products: seed.products, offers: seed.offers,
     team: seed.team, appointments: seed.appointments, tasks: seed.tasks, notifications: seed.notifications,
     suppressions: seed.suppressions, deletionRequests: seed.deletionRequests, auditLog: seed.auditLog, consents: seed.consents,
     settings: initialSettings, live: [],
+    ...(live ? LIVE_EMPTY : {}),
   }));
-  const [role, setRoleState] = useState<Role>(() => { try { return (localStorage.getItem('vf-role') as Role) || 'Super Admin'; } catch { return 'Super Admin'; } });
-  const setRole = (r: Role) => { setRoleState(r); try { localStorage.setItem('vf-role', r); } catch { /* ignore */ } };
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [profile, setProfile] = useState<Awaited<ReturnType<typeof repo.loadMe>>>(null);
+  const [transcripts, setTranscripts] = useState<Record<string, TranscriptLine[]>>({});
+  const transcriptsAsked = useRef(new Set<string>());
+  const [demoRole, setRoleState] = useState<Role>(() => { try { return (localStorage.getItem('vf-role') as Role) || 'Super Admin'; } catch { return 'Super Admin'; } });
+  // Live: the profile decides. Analyst, the least privileged role, covers the moment before it arrives.
+  const role: Role = live ? (profile?.role && toRole(profile.role)) || 'Analyst' : demoRole;
+  const setRole = (r: Role) => { if (live) return; setRoleState(r); try { localStorage.setItem('vf-role', r); } catch { /* ignore */ } };
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toast = useCallback((title: string, desc?: string, kind: Toast['kind'] = 'success') => {
     const id = toastSeq++;
@@ -123,14 +144,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const dismissToast = (id: number) => setToasts((t) => t.filter((x) => x.id !== id));
 
   const me = useMemo(() => {
+    if (live) return toMember(profile ?? { id: '', created_at: new Date().toISOString() });
     const byRole = state.team.find((t) => t.role === role);
     return byRole ?? state.team[0];
-  }, [role, state.team]);
+  }, [live, profile, role, state.team]);
   const can = useCallback((p: Permission) => ROLE_PERMISSIONS[role].includes(p), [role]);
 
   const audit = useCallback((action: string, target: string, category: AuditEntry['category']) => {
+    if (live) return;
     setState((s) => ({ ...s, auditLog: [{ id: `AU-${Date.now()}`, at: new Date().toISOString(), actor: me.name, action, target, ip: '10.24.18.77', category }, ...s.auditLog] }));
-  }, [me.name]);
+  }, [live, me.name]);
 
   const leadById = useMemo(() => new Map(state.leads.map((l) => [l.id, l])), [state.leads]);
   const campaignById = useMemo(() => new Map(state.campaigns.map((l) => [l.id, l])), [state.campaigns]);
@@ -153,16 +176,70 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const mapUpdate = <K extends keyof State>(key: K, id: string, patch: object) =>
     setState((s) => ({ ...s, [key]: (s[key] as unknown as { id: string }[]).map((x) => (x.id === id ? { ...x, ...patch } : x)) }));
 
-  const api: Omit<Ctx, keyof State | 'role' | 'setRole' | 'can' | 'me' | 'toast' | 'toasts' | 'dismissToast' | 'audit' | 'leadById' | 'campaignById' | 'agentById' | 'productById' | 'memberById' | 'eligibility'> = {
-    updateLead: (id, patch) => mapUpdate('leads', id, patch),
-    updateLeads: (ids, patch) => { const set = new Set(ids); setState((s) => ({ ...s, leads: s.leads.map((l) => (set.has(l.id) ? { ...l, ...patch } : l)) })); },
-    addLead: (l) => { const lead = { ...l, id: `LD-${60000 + Math.floor(Math.random() * 30000)}` } as Lead; setState((s) => ({ ...s, leads: [lead, ...s.leads] })); return lead; },
-    addLeads: (ls) => setState((s) => ({ ...s, leads: [...ls.map((l, i) => ({ ...l, id: `LD-${70000 + Math.floor(Math.random() * 20000) + i}` }) as Lead), ...s.leads] })),
-    archiveLeads: (ids) => { const set = new Set(ids); setState((s) => ({ ...s, leads: s.leads.map((l) => (set.has(l.id) ? { ...l, archived: true } : l)) })); },
-    deleteLeads: (ids) => { const set = new Set(ids); setState((s) => ({ ...s, leads: s.leads.filter((l) => !set.has(l.id)) })); },
-    addNote: (leadId, text) => setState((s) => ({ ...s, leads: s.leads.map((l) => (l.id === leadId ? { ...l, notes: [{ id: `n-${Date.now()}`, author: me.name, at: new Date().toISOString(), text }, ...l.notes] } : l)) })),
-    updateCampaign: (id, patch) => mapUpdate('campaigns', id, patch),
-    addCampaign: (c) => { const camp = { ...c, id: `CMP-${1100 + Math.floor(Math.random() * 800)}` } as Campaign; setState((s) => ({ ...s, campaigns: [camp, ...s.campaigns] })); return camp; },
+  // Bumped around every write, so a load that started before the write finished cannot overwrite it with old rows.
+  const writes = useRef(0);
+  const refresh = useCallback(async () => {
+    const started = writes.current;
+    try {
+      const signedIn = await repo.loadMe();
+      setProfile(signedIn);
+      if (!signedIn) { writes.current++; setState((s) => ({ ...s, ...LIVE_EMPTY })); setLoadError(null); return; }
+      if (!signedIn.role) { setLoadError('Your account has no role yet. Ask an administrator to assign one.'); return; }
+      const data = await repo.loadAll();
+      if (started === writes.current) setState((s) => ({ ...s, ...data }));
+      setLoadError(null);
+    } catch (e) {
+      setLoadError(`Could not load live data: ${errorText(e)}`);
+    }
+  }, []);
+  const write = async <T,>(op: () => Promise<T>): Promise<T | null> => {
+    writes.current++;
+    try {
+      const result = await op();
+      writes.current++;
+      return result;
+    } catch (e) {
+      writes.current++;
+      toast('Could not save your change', errorText(e), 'error');
+      void refresh();
+      return null;
+    }
+  };
+  const writeLead = (id: string, patch: Partial<Lead>) => { const row = leadToDb(patch); if (Object.keys(row).length) void write(() => repo.saveLead(id, row)); };
+  const writeLeads = (ids: string[], patch: Partial<Lead>) => { const row = leadToDb(patch); if (Object.keys(row).length) void write(() => repo.saveLeads(ids, row)); };
+
+  const api: Omit<Ctx, keyof State | 'mode' | 'loadError' | 'role' | 'setRole' | 'can' | 'me' | 'toast' | 'toasts' | 'dismissToast' | 'audit' | 'leadById' | 'campaignById' | 'agentById' | 'productById' | 'memberById' | 'eligibility'> = {
+    updateLead: (id, patch) => { mapUpdate('leads', id, patch); if (live) writeLead(id, patch); },
+    updateLeads: (ids, patch) => { const set = new Set(ids); setState((s) => ({ ...s, leads: s.leads.map((l) => (set.has(l.id) ? { ...l, ...patch } : l)) })); if (live) writeLeads(ids, patch); },
+    addLead: async (l) => {
+      const id = live ? await write(() => repo.insertLead(leadInsertRow(l))) : `LD-${60000 + Math.floor(Math.random() * 30000)}`;
+      if (id === null) return null;
+      const lead = { ...l, id } as Lead; setState((s) => ({ ...s, leads: [lead, ...s.leads] })); return lead;
+    },
+    addLeads: async (ls) => {
+      if (live) {
+        if ((await write(() => repo.insertLeads(ls.map(leadInsertRow)).then(() => true))) === null) return false;
+        await refresh(); return true;
+      }
+      setState((s) => ({ ...s, leads: [...ls.map((l, i) => ({ ...l, id: `LD-${70000 + Math.floor(Math.random() * 20000) + i}` }) as Lead), ...s.leads] }));
+      return true;
+    },
+    archiveLeads: (ids) => { const set = new Set(ids); setState((s) => ({ ...s, leads: s.leads.map((l) => (set.has(l.id) ? { ...l, archived: true } : l)) })); if (live) writeLeads(ids, { archived: true }); },
+    deleteLeads: (ids) => { if (live) return; const set = new Set(ids); setState((s) => ({ ...s, leads: s.leads.filter((l) => !set.has(l.id)) })); },
+    addNote: (leadId, text) => {
+      setState((s) => ({ ...s, leads: s.leads.map((l) => (l.id === leadId ? { ...l, notes: [{ id: `n-${Date.now()}`, author: me.name, at: new Date().toISOString(), text }, ...l.notes] } : l)) }));
+      if (live) void write(() => repo.addNote(leadId, me.name, text));
+    },
+    updateCampaign: (id, patch) => {
+      mapUpdate('campaigns', id, patch);
+      const row = campaignToDb(patch);
+      if (live && Object.keys(row).length) void write(() => repo.saveCampaign(id, row));
+    },
+    addCampaign: async (c) => {
+      const id = live ? await write(() => repo.insertCampaign({ ...campaignToDb(c), created_by: me.id })) : `CMP-${1100 + Math.floor(Math.random() * 800)}`;
+      if (id === null) return null;
+      const camp = { ...c, id } as Campaign; setState((s) => ({ ...s, campaigns: [camp, ...s.campaigns] })); return camp;
+    },
     updateAgent: (id, patch) => mapUpdate('agents', id, patch),
     addAgent: (a) => { const ag = { ...a, id: `ag-${10 + Math.floor(Math.random() * 89)}` } as Agent; setState((s) => ({ ...s, agents: [...s.agents, ag] })); return ag; },
     upsertProduct: (p) => setState((s) => ({ ...s, products: s.products.some((x) => x.id === p.id) ? s.products.map((x) => (x.id === p.id ? p : x)) : [...s.products, p] })),
@@ -173,13 +250,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addMember: (m) => setState((s) => ({ ...s, team: [...s.team, { ...m, id: `u-${100 + s.team.length}` } as TeamMember] })),
     markNotification: (id, read) => mapUpdate('notifications', id, { read }),
     markAllRead: () => setState((s) => ({ ...s, notifications: s.notifications.map((n) => ({ ...n, read: true })) })),
-    addSuppression: (sp) => setState((s) => ({ ...s, suppressions: [{ ...sp, id: `SP-${Date.now() % 100000}` }, ...s.suppressions] })),
-    removeSuppression: (id) => setState((s) => ({ ...s, suppressions: s.suppressions.filter((x) => x.id !== id) })),
+    addSuppression: (sp) => {
+      setState((s) => ({ ...s, suppressions: [{ ...sp, id: live ? sp.phone : `SP-${Date.now() % 100000}` }, ...s.suppressions] }));
+      if (live) void write(() => repo.insertSuppression(sp));
+    },
+    removeSuppression: (id) => {
+      setState((s) => ({ ...s, suppressions: s.suppressions.filter((x) => x.id !== id) }));
+      if (live) void write(() => repo.deleteSuppression(id)); // a Live suppression's id is its phone
+    },
     updateDeletion: (id, patch) => mapUpdate('deletionRequests', id, patch),
     updateSettings: (patch) => setState((s) => ({ ...s, settings: { ...s.settings, ...patch } })),
     updateLive: (id, patch) => setState((s) => ({ ...s, live: s.live.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
     endLive: (id, outcome) => setState((s) => finishLive(s, id, outcome)),
     transcriptFor: (c: Call) => {
+      if (live) {
+        if (!transcriptsAsked.current.has(c.id)) {
+          transcriptsAsked.current.add(c.id);
+          repo.loadTranscript(c.id).then(
+            (lines) => setTranscripts((t) => ({ ...t, [c.id]: lines })),
+            () => transcriptsAsked.current.delete(c.id), // the next render asks again
+          );
+        }
+        return transcripts[c.id] ?? [];
+      }
       const lead = leadById.get(c.leadId); const agent = agentById.get(c.agentId);
       if (!lead) return [];
       return seed.getTranscript(c, lead, agent?.name ?? 'Ava');
@@ -189,6 +282,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // ---------- live simulation engine (SIMULATED — no real calls) ----------
   const stateRef = useRef(state); stateRef.current = state;
   useEffect(() => {
+    if (live) return;
     // seed a few in-progress calls immediately
     setState((s) => fillLive(s, 7, true));
     const iv = setInterval(() => {
@@ -201,10 +295,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
     }, 1500);
     return () => clearInterval(iv);
-  }, []);
+  }, [live]);
+
+  // ---------- Live data ----------
+  useEffect(() => {
+    if (!live) return;
+    void refresh();
+    // shortcut: loads whole tables and PostgREST caps at 1000 rows, move to server paging before real campaign volumes
+    const iv = setInterval(() => void refresh(), 5000);
+    const unsubscribe = repo.onAuthChange(() => void refresh());
+    return () => { clearInterval(iv); unsubscribe(); };
+  }, [live, refresh]);
 
   const value: Ctx = {
-    ...state, ...api, role, setRole, can, me, toast, toasts, dismissToast, audit,
+    ...state, ...api, mode, loadError, role, setRole, can, me, toast, toasts, dismissToast, audit,
     leadById, campaignById, agentById, productById, memberById, eligibility,
   };
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;

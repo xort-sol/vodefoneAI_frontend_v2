@@ -124,6 +124,7 @@ export function LeadFormModal({ open, onClose, lead, onSaved }: { open: boolean;
     consent: lead?.consent ?? false, assignedRepId: lead?.assignedRepId ?? '', currentPlan: lead?.currentPlan ?? '',
   });
   const [f, setF] = useState<LeadForm>(init);
+  const lockedLive = app.mode === 'live' && !!lead; // the database refuses web edits to phone, plan and source
   const [touched, setTouched] = useState(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (open) { setF(init()); setTouched(false); } }, [open, lead?.id]);
@@ -144,7 +145,7 @@ export function LeadFormModal({ open, onClose, lead, onSaved }: { open: boolean;
   const valid = Object.keys(errors).length === 0;
   const err = (k: keyof LeadForm) => (touched ? errors[k] : undefined);
 
-  const save = () => {
+  const save = async () => {
     setTouched(true);
     if (!valid || !phoneNorm) return;
     const patch = {
@@ -158,10 +159,11 @@ export function LeadFormModal({ open, onClose, lead, onSaved }: { open: boolean;
       app.toast('Lead updated', `${patch.name} · ${lead.id}`);
       onSaved?.({ ...lead, ...patch });
     } else {
-      const created = app.addLead({
+      const created = await app.addLead({
         ...patch, tenureMonths: 0, status: suppressed ? 'Do not call' : f.campaignId ? 'Queued' : 'New', score: 0, sentiment: 'Neutral', lastCallAt: null,
         attempts: 0, nextFollowUp: null, createdAt: new Date().toISOString(), notes: [], aiSummary: '',
       });
+      if (!created) return;
       app.audit('Created lead', `${created.name} (${created.id})`, 'Data');
       app.toast('Lead added', `${created.name} · ${created.id}${f.campaignId ? ' · queued for campaign' : ''}`);
       onSaved?.(created);
@@ -174,11 +176,11 @@ export function LeadFormModal({ open, onClose, lead, onSaved }: { open: boolean;
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={save}>{lead ? 'Save changes' : 'Add lead'}</Button></>}>
       <div className="form-grid">
         <Field label="Full name" required error={err('name')}><input className={`input ${err('name') ? 'invalid' : ''}`} value={f.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Amelia Hughes" /></Field>
-        <Field label="Mobile / phone (IE)" required error={err('phone')} hint={phoneNorm ? `Stored as ${phoneNorm}` : undefined}><input className={`input ${err('phone') ? 'invalid' : ''}`} value={f.phone} onChange={(e) => set('phone', e.target.value)} placeholder="087 123 4567" inputMode="tel" /></Field>
+        <Field label="Mobile / phone (IE)" required error={err('phone')} hint={phoneNorm ? `Stored as ${phoneNorm}` : undefined}><input className={`input ${err('phone') ? 'invalid' : ''}`} disabled={lockedLive} value={f.phone} onChange={(e) => set('phone', e.target.value)} placeholder="087 123 4567" inputMode="tel" /></Field>
         <Field label="Email" required error={err('email')}><input className={`input ${err('email') ? 'invalid' : ''}`} value={f.email} onChange={(e) => set('email', e.target.value)} placeholder="name@example.co.uk" type="email" /></Field>
         <Field label="City"><input className="input" value={f.city} onChange={(e) => set('city', e.target.value)} placeholder="e.g. Manchester" /></Field>
         <Field label="Customer type"><select className="select" value={f.customerType} onChange={(e) => set('customerType', e.target.value as CustomerType)}>{CUSTOMER_TYPES.map((t) => <option key={t}>{t}</option>)}</select></Field>
-        <Field label="Current plan"><input className="input" value={f.currentPlan} onChange={(e) => set('currentPlan', e.target.value)} placeholder="e.g. Red Entertainment 20GB" /></Field>
+        <Field label="Current plan"><input className="input" disabled={lockedLive} value={f.currentPlan} onChange={(e) => set('currentPlan', e.target.value)} placeholder="e.g. Red Entertainment 20GB" /></Field>
         <Field label="Interested product" required error={err('productInterest')}>
           <select className={`select ${err('productInterest') ? 'invalid' : ''}`} value={f.productInterest} onChange={(e) => set('productInterest', e.target.value)}>
             <option value="">Select product…</option>
@@ -191,7 +193,7 @@ export function LeadFormModal({ open, onClose, lead, onSaved }: { open: boolean;
             {app.campaigns.filter((c) => !['Completed', 'Stopped'].includes(c.status)).map((c) => <option key={c.id} value={c.id}>{c.name} · {c.status}</option>)}
           </select>
         </Field>
-        <Field label="Source"><select className="select" value={f.source} onChange={(e) => set('source', e.target.value as Lead['source'])}>{SOURCES.map((s) => <option key={s}>{s}</option>)}</select></Field>
+        <Field label="Source"><select className="select" disabled={lockedLive} value={f.source} onChange={(e) => set('source', e.target.value as Lead['source'])}>{SOURCES.map((s) => <option key={s}>{s}</option>)}</select></Field>
         <Field label="Assigned rep"><select className="select" value={f.assignedRepId} onChange={(e) => set('assignedRepId', e.target.value)} disabled={!app.can('leads.assign')} title={app.can('leads.assign') ? undefined : 'Your role cannot assign leads'}><option value="">Unassigned</option>{reps.map((r) => <option key={r.id} value={r.id}>{r.name} · {r.team}</option>)}</select></Field>
         <div className="span-all">
           <div className="field-label" style={{ marginBottom: 6 }}>Tags</div>

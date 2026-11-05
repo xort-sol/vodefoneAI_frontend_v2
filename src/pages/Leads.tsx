@@ -70,6 +70,7 @@ export default function Leads() {
   const rows = useMemo(() => base.filter(VIEWS.find((v) => v.value === view)!.test), [base, view]); // eslint-disable-line react-hooks/exhaustive-deps
   const activeFilters = (Object.keys(EMPTY) as (keyof Filters)[]).filter((k) => f[k] !== EMPTY[k]).length;
 
+  const isLive = app.mode === 'live';
   const canEdit = app.can('leads.edit'); const canDelete = app.can('leads.delete'); const canImport = app.can('leads.import'); const canExport = app.can('leads.export'); const canAssign = app.can('leads.assign');
 
   /* ----- actions ----- */
@@ -89,9 +90,10 @@ export default function Leads() {
     app.toast(repId ? `${ids.length} lead${ids.length > 1 ? 's' : ''} assigned to ${r?.name}` : `${ids.length} lead(s) unassigned`);
   };
   const assignCampaign = (ids: string[], campId: string) => {
-    const c = app.campaignById.get(campId)!;
+    const c = app.campaignById.get(campId);
+    if (!c) return;
     const eligible = ids.filter((id) => { const l = app.leadById.get(id); return l && !isSuppressed(l) && l.consent; });
-    eligible.forEach((id) => { const l = app.leadById.get(id)!; app.updateLead(id, { campaignId: campId, productInterest: c.productId, status: ['New', 'Unreachable', 'Contacted'].includes(l.status) ? 'Queued' : l.status }); });
+    eligible.forEach((id) => { const l = app.leadById.get(id); if (!l) return; app.updateLead(id, { campaignId: campId, productInterest: c.productId, status: ['New', 'Unreachable', 'Contacted'].includes(l.status) ? 'Queued' : l.status }); });
     app.audit('Assigned campaign', `${eligible.length} lead(s) → ${c.name}`, 'Campaign');
     app.toast(`${eligible.length} lead${eligible.length === 1 ? '' : 's'} added to ${c.name}`, ids.length - eligible.length ? `${ids.length - eligible.length} skipped (no consent or suppressed)` : undefined);
   };
@@ -159,9 +161,9 @@ export default function Leads() {
             {l.archived ? <MenuItem icon={<RotateCcw />} disabled={!canEdit} onClick={() => { close(); unarchive(l); }}>Restore from archive</MenuItem>
               : <MenuItem icon={<Archive />} disabled={!canEdit} onClick={() => { close(); archive([l.id]); }}>Archive</MenuItem>}
             <div className="menu-sep" />
-            <span title={canDelete ? undefined : 'Only Super Admins can delete leads'} style={{ display: 'block' }}>
+            {!isLive && <span title={canDelete ? undefined : 'Only Super Admins can delete leads'} style={{ display: 'block' }}>
               <MenuItem icon={<Trash2 />} danger disabled={!canDelete} onClick={() => { close(); remove([l.id]); }}>Delete…</MenuItem>
-            </span>
+            </span>}
           </>)}
         </Menu>
       ),
@@ -182,7 +184,7 @@ export default function Leads() {
           <Menu trigger={(t) => <Button size="sm" icon={<Upload />} iconRight={<ChevronDown size={13} />} onClick={t} disabled={!canImport} title={canImport ? undefined : 'Your role cannot import leads'}>Import</Button>}>
             {(close) => (<>
               <MenuItem icon={<FileUp />} onClick={() => { close(); setCsvOpen(true); }}>Bulk import CSV / Excel</MenuItem>
-              <MenuItem icon={<Cloud />} onClick={() => { close(); setCrmOpen(true); }}>Import from CRM</MenuItem>
+              {!isLive && <MenuItem icon={<Cloud />} onClick={() => { close(); setCrmOpen(true); }}>Import from CRM</MenuItem>}
             </>)}
           </Menu>
           {canExport ? <ExportMenu onExport={exportRows} /> : <Button size="sm" icon={<Download />} disabled title="Your role cannot export leads">Export</Button>}
@@ -247,7 +249,7 @@ export default function Leads() {
             <button className="btn xs" onClick={() => retry(ids)} disabled={!canEdit} title="Re-queue leads that pass consent, suppression and attempt-limit checks"><RotateCcw size={13} />Retry eligible</button>
             <button className="btn xs" onClick={() => suppress(ids, clear)} disabled={!canEdit}><ShieldOff size={13} />Suppress</button>
             <button className="btn xs" onClick={() => archive(ids, clear)} disabled={!canEdit}><Archive size={13} />Archive</button>
-            {canDelete && <button className="btn xs" onClick={() => remove(ids, clear)}><Trash2 size={13} />Delete</button>}
+            {canDelete && !isLive && <button className="btn xs" onClick={() => remove(ids, clear)}><Trash2 size={13} />Delete</button>}
           </>)}
         />
       </Card>
@@ -256,7 +258,7 @@ export default function Leads() {
       <LeadFormModal open={adding} onClose={() => setAdding(false)} onSaved={(l) => nav(`/leads/${l.id}`)} />
       <LeadFormModal open={!!edit} onClose={() => setEdit(null)} lead={edit} />
       <CsvImportModal open={csvOpen} onClose={() => setCsvOpen(false)} />
-      <CrmImportModal open={crmOpen} onClose={() => setCrmOpen(false)} />
+      {!isLive && <CrmImportModal open={crmOpen} onClose={() => setCrmOpen(false)} />}
     </>
   );
 }

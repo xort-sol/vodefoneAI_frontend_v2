@@ -174,7 +174,7 @@ export default function CampaignWizard() {
   const startsLater = !!form.startDate && fromYmd(form.startDate) > new Date(today.getTime() + DAY - 1);
 
   // ---------- submit ----------
-  const submit = (status: Campaign['status']) => {
+  const submit = async (status: Campaign['status']) => {
     if (!canManage) return;
     if (status === 'Draft' && !form.name.trim()) { setStep(0); setShowErr((s) => new Set(s).add(0)); app.toast('Name required', 'Give the draft a name before saving.', 'error'); return; }
     if (status !== 'Draft' && blocking) { app.toast('Resolve blocking issues first', 'Some steps are incomplete or compliance checks failed.', 'error'); return; }
@@ -183,7 +183,7 @@ export default function CampaignWizard() {
     const endISO = form.endDate ? new Date(fromYmd(form.endDate).getTime() + 9 * 3600000).toISOString() : new Date(Date.now() + 30 * DAY).toISOString();
     const segment = [form.types.length ? form.types.join(' / ') : 'All customer types', form.city, form.tags[0]].filter(Boolean).join(' · ');
     const pid = form.productId || (app.products.find((p) => p.approved)?.id ?? app.products[0].id);
-    const camp = app.addCampaign({
+    const camp = await app.addCampaign({
       name: form.name.trim(), productId: pid, offerId: form.offerId || null, agentId: form.agentId || (app.agents.find((a) => a.status === 'Live')?.id ?? app.agents[0].id), status,
       startDate: startISO, endDate: endISO, totalLeads: match.selected.length, attempted: 0, connected: 0, warm: 0, qualified: 0, minutes: 0,
       costPerMinute: pid.startsWith('p-biz') ? 0.145 : 0.118, segment,
@@ -192,6 +192,7 @@ export default function CampaignWizard() {
       qualification: { minScore: form.minScore, requireBudget: form.requireBudget, requireDecisionMaker: form.requireDecisionMaker, requireTimeline: form.requireTimeline },
       createdBy: form.owner, description: form.description.trim() || `${form.objective} campaign for ${segment.toLowerCase()}.`,
     });
+    if (!camp) { setSubmitting(false); return; }
     setCampaignExtras(camp.id, {
       objective: form.objective, owner: form.owner, pitch: form.pitch, questions: form.questions.filter((q) => q.trim()), hotThreshold: form.hot, warmThreshold: form.warm, voicemail: form.voicemail,
       filters: describeFilters(form),
@@ -200,7 +201,7 @@ export default function CampaignWizard() {
     const verb = status === 'Active' ? 'Launched campaign' : status === 'Scheduled' ? 'Scheduled campaign' : 'Saved campaign draft';
     app.audit(verb, camp.name, 'Campaign');
     app.toast(status === 'Active' ? 'Campaign launched' : status === 'Scheduled' ? 'Campaign scheduled' : 'Draft saved',
-      status === 'Active' ? `${fmtInt(match.selected.length)} leads queued — simulated calling begins shortly.` : status === 'Scheduled' ? `Starts ${fmtDate(startISO)} · ${fmtInt(match.selected.length)} leads queued.` : `${camp.name} saved as draft.`);
+      status === 'Active' ? `${fmtInt(match.selected.length)} leads queued — ${app.mode === 'live' ? 'calling' : 'simulated calling'} begins shortly.` : status === 'Scheduled' ? `Starts ${fmtDate(startISO)} · ${fmtInt(match.selected.length)} leads queued.` : `${camp.name} saved as draft.`);
     nav(`/campaigns/${camp.id}`);
   };
 
@@ -472,7 +473,7 @@ export default function CampaignWizard() {
       `}</style>
       <PageHeader
         title={source ? 'Duplicate campaign' : 'New campaign'}
-        desc="Configure the audience, AI agent, offer, qualification rules and calling schedule. All calling is simulated."
+        desc={`Configure the audience, AI agent, offer, qualification rules and calling schedule.${app.mode === 'live' ? '' : ' All calling is simulated.'}`}
         eyebrow={<><Button size="xs" variant="ghost" icon={<ArrowLeft size={12} />} onClick={() => nav('/campaigns')}>Campaigns</Button><SimBadge /></>}
         actions={<>
           <Button size="sm" variant="ghost" onClick={() => nav('/campaigns')}>Cancel</Button>

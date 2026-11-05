@@ -67,7 +67,8 @@ export default function LeadProfile() {
     app.toast(repId ? 'Rep assigned' : 'Lead unassigned', repId ? `${lead.name} → ${r?.name}` : lead.name);
   };
   const addToCampaign = (campId: string) => {
-    const c = app.campaignById.get(campId)!;
+    const c = app.campaignById.get(campId);
+    if (!c) return;
     if (lead.dnc || suppressed || !lead.consent) { setBlocked(elig.reasons.length ? elig.reasons : ['No valid marketing consent']); return; }
     app.updateLead(lead.id, { campaignId: campId, productInterest: c.productId, status: ['New', 'Unreachable', 'Contacted'].includes(lead.status) ? 'Queued' : lead.status });
     app.audit('Assigned campaign', `${lead.name} → ${c.name}`, 'Campaign');
@@ -154,7 +155,7 @@ export default function LeadProfile() {
             </>)}
           </Menu>
           <Button size="sm" variant="danger" icon={<ShieldOff />} onClick={suppress} disabled={!canEdit || lead.dnc} title={lead.dnc ? 'Already suppressed' : noEdit}>Suppress</Button>
-          <Button size="sm" variant="primary" icon={<Phone />} onClick={callNow} disabled={!app.can('calling.control') && !canEdit}>Call now</Button>
+          {app.mode !== 'live' && <Button size="sm" variant="primary" icon={<Phone />} onClick={callNow} disabled={!app.can('calling.control') && !canEdit}>Call now</Button>}
         </div>
       </div>
 

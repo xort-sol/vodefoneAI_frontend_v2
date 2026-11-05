@@ -1,6 +1,7 @@
 // Shared selectors so every page computes metrics the same way.
 import { DAY, NOW, startOfDay, dailyHistory, type DayStat } from '../data/seed';
 import type { Call, Lead } from '../data/types';
+import { getMode } from '../live/client';
 
 export type RangeKey = 'today' | 'yesterday' | '7d' | '30d' | '90d' | '12m' | 'custom';
 export interface Range { key: RangeKey; from: Date; to: Date; label: string }
@@ -37,7 +38,7 @@ export function dailySeries(calls: Call[], from: Date, to: Date): DayStat[] {
     const k = new Date(t).toDateString();
     map.set(k, { date: new Date(t).toISOString(), calls: 0, connected: 0, qualified: 0, minutes: 0, cost: 0 });
   }
-  for (const h of dailyHistory) { const k = new Date(h.date).toDateString(); if (map.has(k)) map.set(k, { ...h, date: map.get(k)!.date }); }
+  if (getMode() !== 'live') for (const h of dailyHistory) { const k = new Date(h.date).toDateString(); if (map.has(k)) map.set(k, { ...h, date: map.get(k)!.date }); }
   for (const c of calls) {
     const k = new Date(c.startedAt).toDateString(); const d = map.get(k); if (!d) continue;
     d.calls++; if (c.connected) d.connected++; if (c.outcome === 'Qualified' || c.outcome === 'Transferred to human') d.qualified++;

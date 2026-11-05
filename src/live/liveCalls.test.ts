@@ -187,10 +187,11 @@ describe('joinCall', () => {
     it('an enable click the browser refuses does not throw', async () => {
       fake.audioBlocked = true;
       const { reports, room } = await listen();
-      room.startAudio.mockRejectedValueOnce(new Error('NotAllowedError'));
-      reports[0]!(); // an uncaught rejection here would fail the run
+      let tried = 0;
+      room.startAudio = () => { tried++; return Promise.reject(new Error('NotAllowedError')); }; // not vi.fn: it marks the rejection as handled
+      reports[0]!(); // vitest fails the run on an unhandled rejection
       await new Promise((res) => setTimeout(res));
-      expect(room.startAudio).toHaveBeenCalledTimes(1);
+      expect(tried).toBe(1);
     });
   });
 

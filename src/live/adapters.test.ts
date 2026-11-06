@@ -46,7 +46,7 @@ describe('callable', () => {
   const ready = { id: 1, status: 'new', sales_status: null, consent: true, archived: false, created_at: 'x' };
   it.each(['new', 'retry', 'callback'])('dialler status %s can ring', (status) => expect(toLead({ ...ready, status }, []).callable).toBe(true));
   it.each([
-    [{ sales_status: 'Hot' }], [{ consent: false }], [{ archived: true }], [{ status: 'interested' }], [{ status: 'exhausted' }],
+    [{ sales_status: 'Hot' }], [{ assigned_to: 'rep-1' }], [{ consent: false }], [{ archived: true }], [{ status: 'interested' }], [{ status: 'exhausted' }],
     [{ status: 'closed' }], [{ status: 'do_not_call' }], [{ status: 'dialling' }],
   ])('%j cannot ring', (o) => expect(toLead({ ...ready, ...o }, []).callable).toBe(false));
 });

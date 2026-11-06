@@ -253,7 +253,7 @@ export default function Leads() {
           </>)}
         />
       </Card>
-      <div className="small muted mt-12">Lead data last synced from Salesforce {fmtDate(NOW)} · {fmtInt(app.leads.filter((l) => !l.archived).length)} active records · {fmtInt(app.suppressions.length)} numbers on suppression list</div>
+      <div className="small muted mt-12">{!isLive && `Lead data last synced from Salesforce ${fmtDate(NOW)} · `}{fmtInt(app.leads.filter((l) => !l.archived).length)} active records · {fmtInt(app.suppressions.length)} numbers on suppression list</div>
 
       <LeadFormModal open={adding} onClose={() => setAdding(false)} onSaved={(l) => nav(`/leads/${l.id}`)} />
       <LeadFormModal open={!!edit} onClose={() => setEdit(null)} lead={edit} />

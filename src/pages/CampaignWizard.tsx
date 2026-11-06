@@ -327,9 +327,9 @@ export default function CampaignWizard() {
                   <div className="small subtle mt-4">{a.personality}</div>
                 </div>
               </div>
-              <div className="grid g-4 keep-2 mt-12" style={{ gap: 8 }}>
+              {app.mode !== 'live' && <div className="grid g-4 keep-2 mt-12" style={{ gap: 8 }}>
                 <Kpi l="Calls" v={fmtInt(a.totalCalls)} /><Kpi l="Qual. rate" v={fmtPct(a.qualificationRate)} /><Kpi l="Avg dur." v={fmtDur(a.avgDuration)} /><Kpi l="Sentiment" v={`${a.sentimentScore}`} />
-              </div>
+              </div>}
               {!ok && <div className="row xs muted mt-8"><Lock size={12} />{a.status === 'Paused' ? 'Paused — re-enable in Agent Builder before assigning' : 'Draft — publish a version before assigning'}</div>}
               {a.status === 'Testing' && <div className="row xs mt-8" style={{ color: '#6d28d9' }}><AlertTriangle size={12} />Testing agent — calls will be flagged for supervised review</div>}
             </button>

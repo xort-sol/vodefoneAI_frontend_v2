@@ -40,7 +40,7 @@ export function toLead(row: Row, notes: Row[]): Lead {
     archived: !!row.archived,
     notes: notes.map((n) => ({ id: String(n.id), author: n.author, at: n.created_at, text: n.text })),
     aiSummary: row.ai_summary ?? '',
-    callable: !row.sales_status && !!row.consent && !row.archived && ['new', 'retry', 'callback'].includes(row.status),
+    callable: !row.sales_status && !row.assigned_to && !!row.consent && !row.archived && ['new', 'retry', 'callback'].includes(row.status),
   };
 }
 

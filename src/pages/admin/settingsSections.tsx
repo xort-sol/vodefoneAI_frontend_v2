@@ -200,7 +200,7 @@ export function CallingSection({ canEdit }: P) {
         </div>
         {err && <div className="field-error mt-8">{err}</div>}
         <Row title="Vary retry time of day" desc="Retry at a different time window than the previous attempt."><Switch on={d.draft.spreadTimes} onChange={(v) => d.patch({ spreadTimes: v })} label="Vary retry time" /></Row>
-        <Row title="Pause all calling" desc="Emergency stop for the simulated calling engine. In-progress calls finish normally."><Switch on={d.draft.callingPaused} onChange={(v) => d.patch({ callingPaused: v })} label="Pause calling" /></Row>
+        {app.mode !== 'live' && <Row title="Pause all calling" desc="Emergency stop for the simulated calling engine. In-progress calls finish normally."><Switch on={d.draft.callingPaused} onChange={(v) => d.patch({ callingPaused: v })} label="Pause calling" /></Row>}
         <div className="inset-box row between mt-8" style={{ flexWrap: 'wrap' }}>
           <div className="small"><span className="muted">Calling hours: </span><span className="mono">{h.start}–{h.end}</span> · {DAYS.filter((x) => h.days.includes(x)).join(', ')}</div>
           <Button size="xs" variant="ghost" iconRight={<ArrowRight size={12} />} onClick={() => nav('/compliance?tab=hours')}>Edit in Compliance</Button>

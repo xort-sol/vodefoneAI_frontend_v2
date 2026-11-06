@@ -112,12 +112,14 @@ export default function Calling() {
         <KpiCard label="Available AI agents" icon={<Bot size={13} />} value={`${liveAgents.length}`} hint={<span>{busyAgents.size} handling calls{isLive ? '' : ` · ${app.agents.length - liveAgents.length} offline/testing`}</span>} onClick={() => nav('/agents')} />
         <KpiCard label="Avg. call duration" icon={<Timer size={13} />} value={fmtDur(today.avg)} hint={<span>connected calls today</span>} />
         <KpiCard label="Minutes today" icon={<Clock size={13} />} value={fmtInt(today.minutes)} hint={<span>{fmtEUR(today.cost, 2)} estimated spend</span>} />
+        {!isLive && (
         <div className="card kpi">
           <div className="kpi-label"><Gauge size={13} />Current capacity</div>
           <div className="kpi-value">{app.live.length}<span className="muted" style={{ fontSize: 16, fontWeight: 500 }}> / {s.maxConcurrent}</span></div>
           <Progress value={capPct} color={capPct > 85 ? CHART.orange : CHART.ink} />
           <div className="kpi-foot">{fmtPct(capPct, 0)} of concurrent line limit</div>
         </div>
+        )}
       </div>
 
       {/* Global controls + campaign control */}
@@ -128,6 +130,7 @@ export default function Calling() {
             <div className="small muted mt-4">{s.callingPaused ? 'Paused — no new calls start' : isLive && !activeCampIds.size ? 'No campaign is running' : 'Running within calling hours'}</div>
             <div className="mt-8"><Button size="sm" variant={s.callingPaused ? 'primary' : 'secondary'} icon={s.callingPaused ? <Play /> : <Pause />} disabled={pauseDisabled} title={ctlTitle} onClick={togglePause}>{s.callingPaused ? 'Resume' : 'Pause all'}</Button></div>
           </div>
+          {!isLive && (<>
           <div>
             <div className="row between"><span className="field-label">Max concurrent calls</span><span className="mono strong">{s.maxConcurrent}</span></div>
             <input type="range" className="range mt-8" min={1} max={100} value={s.maxConcurrent} disabled={!canControl} title={ctlTitle}
@@ -143,6 +146,7 @@ export default function Calling() {
               <div className="grow"><Progress value={dailyPct} color={dailyPct > 85 ? CHART.orange : CHART.purple} /></div>
             </div>
           </div>
+          </>)}
           <div>
             <div className="row between"><span className="field-label">Permitted calling hours</span><Button size="xs" variant="ghost" onClick={() => nav('/settings')}>Settings</Button></div>
             <div className="small muted mt-4">{s.callingHours.days.join(', ')}</div>

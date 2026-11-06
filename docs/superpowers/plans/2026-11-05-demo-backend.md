@@ -684,7 +684,15 @@ npm run dev
 
 Expected: `/health` returns `{"ok": true}` and Live mode shows empty lists rather than errors.
 
-- [ ] **Step 5: Run the whole path in a browser (approval for the real call).**
+- [ ] **Step 5: Run the persona eval (approval).** Before the first real call, from the backend repo root. It is slow and uses LLM credits.
+
+```bash
+uv run pytest -m eval
+```
+
+Expected: every persona passes. Fix any failure before ringing a phone.
+
+- [ ] **Step 6: Run the whole path in a browser (approval for the real call).**
 
 Sign in as the manager; import a 3-lead CSV with `consent` Y on allowlisted test phones; create and launch a campaign; answer the call.
 
@@ -696,6 +704,16 @@ Expected:
 - Sign in as the salesperson and accept and convert the lead; a reload keeps the change.
 - Say "don't call me" on a second call; the number lands on suppression and is never rung again.
 
-- [ ] **Step 6: Check failure behaviour.** Stop the API mid-demo: the Calling page shows the banner, other screens keep working. Switch to Demo data: every out-of-scope screen renders with no console errors.
+Two checks on the first real call, neither testable without one:
+- Speaker labels: open the transcript. If every line reads AI, the customer's turns are being mislabelled; tell them apart with `lk.transcribed_track_id`.
+- Ended calls leave the list: after hang-up the call disappears from the Calling Centre.
 
-- [ ] **Step 7: Rehearse.** Run the storyline three times in a row, then record a backup video of a good call.
+- [ ] **Step 7: Check failure behaviour.** Stop the API mid-demo: the Calling page shows the banner, other screens keep working. Switch to Demo data: every out-of-scope screen renders with no console errors.
+
+- [ ] **Step 8: Rehearse.** Run the storyline three times in a row, then record a backup video of a good call. Between rehearsals, reset the test leads from the backend repo root with the same allowlist the demo runs with:
+
+```bash
+DIAL_ALLOWLIST=+3538XXXXXXXX uv run python scripts/reset_demo.py
+```
+
+Expected: it reports the leads it reset. It refuses an unset, blank or `*` allowlist, and touches only those numbers: they become `new` with no attempts, no sales decision and no campaign, and leave the suppression list. Attach them to a new campaign for the next run.

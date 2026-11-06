@@ -15,7 +15,7 @@ const { mock } = vi.hoisted(() => {
 vi.mock('@supabase/supabase-js', () => ({ createClient: () => mock }));
 
 import {
-  toRole, toLeadStatus, leadStatusPatch, toLead, toCampaign, campaignStatusToDb, toCall, toTranscript, toMember, stripTags,
+  toRole, toLeadStatus, leadStatusPatch, toLead, leadInsertRow, toCampaign, campaignStatusToDb, toCall, toTranscript, toMember, stripTags,
 } from './adapters';
 import { signInLive, supabase } from './client';
 import { products } from '../data/seed';
@@ -110,6 +110,31 @@ describe('toLead / toMember', () => {
   it('maps a profile to a member', () =>
     expect(toMember({ id: 'u1', email: 'a@b.ie', full_name: 'Ann Byrne', role: 'analyst', created_at: '2026-01-01T00:00:00Z' }))
       .toMatchObject({ id: 'u1', name: 'Ann Byrne', initials: 'AB', role: 'Analyst' }));
+});
+
+describe('final review fixes', () => {
+  it('a member has a nominal capacity, so Auto-assign can pick them', () => {
+    expect(toMember({ id: 'u1', role: 'salesperson', created_at: 'x' }).capacity).toBe(25);
+  });
+  it('a lead reads its sentiment the way a call does', () => {
+    expect(toLead({ id: 1, status: 'new', sentiment: 'positive' }, []).sentiment).toBe('Positive');
+    expect(toLead({ id: 1, status: 'new', sentiment: null }, []).sentiment).toBe('Neutral');
+  });
+  it('the analysis and the agreed words reach the call, and stay absent when empty', () => {
+    const call = toCall({
+      id: 1, lead_id: 2, campaign_id: 3, outcome: 'callback', created_at: 'x', interested_services: 'Broadband, Mobile', callback_time: 'Tuesday after 3',
+      analyses: { reason: 'Contract ends in May', next_step: 'Ring on Tuesday' },
+    });
+    expect(call).toMatchObject({ reason: 'Contract ends in May', nextStep: 'Ring on Tuesday', interestedServices: 'Broadband, Mobile', callbackTime: 'Tuesday after 3' });
+    const bare = toCall({ id: 1, lead_id: 2, campaign_id: 3, outcome: 'hung_up', created_at: 'x', interested_services: '', analyses: null });
+    expect([bare.reason, bare.nextStep, bare.interestedServices, bare.callbackTime]).toEqual([undefined, undefined, undefined, undefined]);
+  });
+  it('the Unknown placeholder never becomes a stored plan', () => {
+    const l = { phone: '+353871234567', source: 'CSV import', name: 'A' } as Parameters<typeof leadInsertRow>[0];
+    expect(leadInsertRow({ ...l, currentPlan: 'Unknown' })).not.toHaveProperty('current_plan');
+    expect(leadInsertRow({ ...l, currentPlan: '' })).not.toHaveProperty('current_plan');
+    expect(leadInsertRow({ ...l, currentPlan: 'Red' })).toMatchObject({ current_plan: 'Red' });
+  });
 });
 
 describe('signInLive', () => {

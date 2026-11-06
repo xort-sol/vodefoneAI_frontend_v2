@@ -11,6 +11,9 @@ const ROLES: Record<string, Role> = {
 };
 export const toRole = (dbRole: string): Role => ROLES[dbRole];
 
+const SENTIMENT = { positive: 'Positive', neutral: 'Neutral', negative: 'Negative' } as const;
+const toSentiment = (s: unknown) => SENTIMENT[String(s).toLowerCase() as keyof typeof SENTIMENT] ?? 'Neutral';
+
 const LEAD_STATUS: Record<string, LeadStatus> = {
   new: 'New', dialling: 'Contacted', retry: 'Contacted', callback: 'Callback requested',
   closed: 'Not interested', exhausted: 'Unreachable', do_not_call: 'Do not call',
@@ -30,7 +33,7 @@ export function toLead(row: Row, notes: Row[]): Lead {
     customerType: row.customer_type ?? 'Business', currentPlan: row.current_plan ?? '', tenureMonths: 0,
     productInterest: row.product_ref ?? products[0].id, // pages look products up by id
     source: row.source ?? 'CSV import', campaignId: row.campaign_id == null ? null : String(row.campaign_id),
-    status: toLeadStatus(row), score: row.score ?? 0, sentiment: row.sentiment ?? 'Neutral',
+    status: toLeadStatus(row), score: row.score ?? 0, sentiment: toSentiment(row.sentiment),
     lastCallAt: row.last_call_at ?? null, attempts: row.attempts ?? 0,
     assignedRepId: row.assigned_to ?? null, nextFollowUp: row.next_follow_up ?? null,
     tags: row.tags ?? [], consent: !!row.consent, dnc: row.status === 'do_not_call', createdAt: row.created_at,
@@ -49,7 +52,10 @@ export const leadToDb = (p: Partial<Lead>): Row => defined({
   assigned_to: p.assignedRepId, next_follow_up: p.nextFollowUp, product_ref: p.productInterest, campaign_id: p.campaignId,
   ...(p.status ? leadStatusPatch(p.status) : {}),
 });
-export const leadInsertRow = (l: Omit<Lead, 'id'>): Row => ({ ...leadToDb(l), phone: l.phone, source: l.source, current_plan: l.currentPlan });
+// 'Unknown' is the screens' placeholder: stored, the agent would read it out as the customer's plan
+export const leadInsertRow = (l: Omit<Lead, 'id'>): Row => ({
+  ...leadToDb(l), phone: l.phone, source: l.source, ...(l.currentPlan && l.currentPlan !== 'Unknown' ? { current_plan: l.currentPlan } : {}),
+});
 
 const CAMPAIGN_STATUS: Record<string, Campaign['status']> = {
   draft: 'Draft', approved: 'Scheduled', running: 'Active', paused: 'Paused', done: 'Completed',
@@ -100,7 +106,6 @@ const OUTCOME: Record<string, CallOutcome> = {
   voicemail: 'Voicemail', no_response: 'No answer', unreachable: 'Failed', hung_up: 'Not interested',
 };
 const NOT_CONNECTED = ['no_answer', 'voicemail', 'unreachable', 'no_response'];
-const SENTIMENT = { positive: 'Positive', neutral: 'Neutral', negative: 'Negative' } as const;
 
 /** `row.analyses` is the joined analysis (or null); `campaign` supplies the agent and product refs. */
 export function toCall(row: Row, campaign?: { agent_ref?: string | null; product_ref?: string | null } | null): Call {
@@ -112,10 +117,12 @@ export function toCall(row: Row, campaign?: { agent_ref?: string | null; product
     id: String(row.id), leadId: String(row.lead_id), campaignId: String(row.campaign_id),
     agentId: campaign?.agent_ref ?? '', productId: campaign?.product_ref ?? products[0].id,
     startedAt: row.created_at, duration, outcome, connected: !NOT_CONNECTED.includes(row.outcome),
-    sentiment: SENTIMENT[String(a.sentiment).toLowerCase() as keyof typeof SENTIMENT] ?? 'Neutral',
+    sentiment: toSentiment(a.sentiment),
     intent: score, score, cost: (duration / 60) * COST_PER_MINUTE, recording: 'Not recorded',
     summary: a.brief ?? row.notes ?? '', objections: a.objections ?? [], questions: a.questions ?? [], unanswered: a.unanswered ?? [],
     ...(a.qualification ? { qualification: a.qualification } : {}),
+    reason: a.reason || undefined, nextStep: a.next_step || undefined,
+    interestedServices: row.interested_services || undefined, callbackTime: row.callback_time || undefined,
     simulated: false,
   };
 }
@@ -125,11 +132,13 @@ export const stripTags = (text: string): string => text.replace(/\[[^\]]*\]\s*/g
 export const toTranscript = (rows: Row[]): TranscriptLine[] =>
   rows.map((r) => ({ t: r.t_seconds ?? 0, speaker: r.role === 'agent' ? 'AI' : 'Customer', text: stripTags(r.text) }));
 
+const LIVE_CAPACITY = 25; // nominal: profiles store none, and Auto-assign skips a rep at capacity 0
+
 export function toMember(row: Row): TeamMember {
   const name = row.full_name || row.email || 'Unnamed';
   return {
     id: row.id, name, initials: initialsOf(name), email: row.email ?? '', role: toRole(row.role) ?? 'Analyst',
-    team: 'Operations', products: [], status: 'Available', capacity: 0, conversions: 0, revenue: 0, responseHrs: 0,
+    team: 'Operations', products: [], status: 'Available', capacity: LIVE_CAPACITY, conversions: 0, revenue: 0, responseHrs: 0,
     joined: row.created_at, lastActive: row.created_at,
   };
 }

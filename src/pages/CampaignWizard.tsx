@@ -8,7 +8,7 @@ import { Avatar, Badge, Button, Card, Field, KV, PageHeader, Progress, SimBadge,
 import { fmtDate, fmtDur, fmtEUR, fmtInt, fmtPct } from '../lib/format';
 import { DAY, NOW, startOfDay } from '../data/seed';
 import type { Campaign, CustomerType, Lead } from '../data/types';
-import { createCampaign, DayChips, TIMEZONES, VOICEMAIL_POLICIES, daysRange, getCampaignExtras, setCampaignExtras, toMin, type CampaignExtras, ModulePage } from './campaigns/shared';
+import { createCampaign, DayChips, TIMEZONES, VOICEMAIL_POLICIES, daysRange, getCampaignExtras, inCallingWindow, setCampaignExtras, toMin, type CampaignExtras, ModulePage } from './campaigns/shared';
 
 const STEPS = ['Campaign information', 'Lead selection', 'AI agent', 'Product & offer', 'Qualification', 'Schedule & retry', 'Review & launch'] as const;
 const OBJECTIVES = ['Renewal / recontract', 'New acquisition', 'Upsell / cross-sell', 'Retention / win-back', 'Appointment setting'];
@@ -121,6 +121,7 @@ export default function CampaignWizard() {
       else if (form.dailyCap > app.settings.dailyCap) e.dailyCap = `Exceeds workspace daily cap of ${fmtInt(app.settings.dailyCap)}`;
       if (form.maxAttempts < 1 || form.maxAttempts > 6) e.maxAttempts = 'Between 1 and 6 attempts';
       if (form.intervalHours < 1) e.intervalHours = 'At least 1 hour';
+      else if (app.mode === 'live' && !Number.isInteger(form.intervalHours)) e.intervalHours = 'Use whole hours';
     }
     return e;
   };
@@ -166,7 +167,7 @@ export default function CampaignWizard() {
     { label: 'Product approved for outbound', detail: product ? `${product.name} · reviewed ${fmtDate(product.lastReviewed)}` : 'No product selected', state: product?.approved ? 'pass' : 'fail' },
     { label: 'Offer validity', detail: offer ? (new Date(offer.endDate) < fromYmd(form.endDate || ymd(today)) ? `${offer.name} ends ${fmtDate(offer.endDate)} — before campaign end` : `${offer.name} valid until ${fmtDate(offer.endDate)}`) : 'No promotional offer — standard pricing only', state: offer && new Date(offer.endDate) < fromYmd(form.endDate || ymd(today)) ? 'warn' : 'pass' },
     { label: 'AI agent readiness', detail: agent ? `${agent.name} ${agent.version} · ${agent.status}${agent.status === 'Testing' ? ' — supervised test calls only' : ''}` : 'No agent selected', state: !agent ? 'fail' : agent.status === 'Live' ? 'pass' : agent.status === 'Testing' ? 'warn' : 'fail' },
-    { label: 'AI disclosure & recording notice', detail: app.settings.disclosure ? `Recording ${app.settings.recordCalls ? 'enabled' : 'disabled'} · disclosure read at call start` : 'No disclosure configured', state: app.settings.disclosure ? 'pass' : 'fail' },
+    { label: app.mode === 'live' ? 'AI disclosure' : 'AI disclosure & recording notice', detail: !app.settings.disclosure ? 'No disclosure configured' : app.mode === 'live' ? 'Disclosure read at call start' : `Recording ${app.settings.recordCalls ? 'enabled' : 'disabled'} · disclosure read at call start`, state: app.settings.disclosure ? 'pass' : 'fail' },
     { label: 'Permitted calling hours', detail: outsideHours ? `Window extends beyond policy (${hours.days.join(', ')} ${hours.start}–${hours.end}); out-of-policy slots are blocked` : `${daysRange(form.days)} ${form.start}–${form.end} within policy`, state: outsideHours ? 'warn' : 'pass' },
     { label: 'Contact frequency limits', detail: `${form.maxAttempts} attempts, every ${form.intervalHours}h`, state: form.maxAttempts <= 4 && form.intervalHours >= 4 ? 'pass' : 'warn' },
     { label: 'Duration fits campaign window', detail: `~${est.calendarDays} days needed vs ${est.span} days scheduled`, state: est.calendarDays <= est.span ? 'pass' : 'warn' },
@@ -207,7 +208,7 @@ export default function CampaignWizard() {
     const verb = status === 'Active' ? 'Launched campaign' : status === 'Scheduled' ? 'Scheduled campaign' : 'Saved campaign draft';
     app.audit(verb, camp.name, 'Campaign');
     app.toast(status === 'Active' ? 'Campaign launched' : status === 'Scheduled' ? 'Campaign scheduled' : 'Draft saved',
-      status === 'Active' ? `${fmtInt(match.selected.length)} leads queued — ${app.mode === 'live' ? 'calling' : 'simulated calling'} begins shortly.` : status === 'Scheduled' ? `Starts ${fmtDate(startISO)} · ${fmtInt(match.selected.length)} leads queued.` : `${camp.name} saved as draft.`);
+      status === 'Active' ? `${fmtInt(match.selected.length)} leads queued — ${app.mode !== 'live' ? 'simulated calling begins shortly' : inCallingWindow(form) ? 'calling begins shortly' : 'calling starts at the next calling window'}.` : status === 'Scheduled' ? `Starts ${fmtDate(startISO)} · ${fmtInt(match.selected.length)} leads queued.` : `${camp.name} saved as draft.`);
     nav(`/campaigns/${camp.id}`);
   };
 
@@ -461,7 +462,9 @@ export default function CampaignWizard() {
           ))}
         </div>
       </Card>
-      <div className="banner sim"><FlaskConical /><div>Launching queues leads for <span className="medium">simulated</span> AI calls only — no real outbound calls are placed in this demonstration.</div></div>
+      {app.mode === 'live'
+        ? <div className="banner warn"><AlertTriangle /><div>This will place real calls to allowlisted numbers.</div></div>
+        : <div className="banner sim"><FlaskConical /><div>Launching queues leads for <span className="medium">simulated</span> AI calls only — no real outbound calls are placed in this demonstration.</div></div>}
     </div>,
   ];
 
@@ -534,7 +537,7 @@ export default function CampaignWizard() {
             ) : (
               <div className="row-wrap">
                 <Button icon={<Save />} disabled={!canManage || submitting} onClick={() => submit('Draft')}>Save as draft</Button>
-                <Button icon={<CalendarClock />} disabled={!canManage || submitting || blocking || !startsLater} title={!startsLater ? 'Set a future start date to schedule' : blocking ? 'Resolve blocking checks first' : undefined} onClick={() => submit('Scheduled')}>Schedule for {form.startDate ? fmtDate(fromYmd(form.startDate)) : '—'}</Button>
+                {app.mode !== 'live' && <Button icon={<CalendarClock />} disabled={!canManage || submitting || blocking || !startsLater} title={!startsLater ? 'Set a future start date to schedule' : blocking ? 'Resolve blocking checks first' : undefined} onClick={() => submit('Scheduled')}>Schedule for {form.startDate ? fmtDate(fromYmd(form.startDate)) : '—'}</Button>}
                 <Button variant="primary" icon={<Rocket />} disabled={!canManage || submitting || blocking} title={blocking ? 'Resolve blocking checks first' : !canManage ? 'Your role cannot manage campaigns' : undefined} onClick={() => submit('Active')}>Launch now</Button>
               </div>
             )}

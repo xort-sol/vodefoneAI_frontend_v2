@@ -18,9 +18,10 @@ import { fetchLiveRooms } from '../live/liveCalls';
 import { AppProvider, useApp } from './store';
 import { ConfirmProvider } from '../components/ui';
 import Calling from '../pages/Calling';
-import { campaignStats } from '../live/adapters';
+import { campaignStats, toMember } from '../live/adapters';
 import { dailySeries } from '../lib/metrics';
-import { createCampaign } from '../pages/campaigns/shared';
+import { createCampaign, inCallingWindow } from '../pages/campaigns/shared';
+import { HandoverDrawer, leadInsights } from '../pages/leads/Handover';
 import * as seed from '../data/seed';
 
 const r = vi.mocked(repo);
@@ -171,6 +172,24 @@ describe('live mode', () => {
     expect(r.loadTranscript).toHaveBeenCalledTimes(2);
   });
 
+  it('an empty transcript is asked for again after the next refresh, and lines then stay', async () => {
+    const { result } = await start();
+    r.loadTranscript.mockResolvedValueOnce([]);
+    const c = result.current.calls[0];
+    result.current.transcriptFor(c);
+    await tick(0);
+    result.current.transcriptFor(c);
+    expect(r.loadTranscript).toHaveBeenCalledTimes(1); // rendering alone never re-asks
+    await tick(5000);
+    result.current.transcriptFor(c);
+    await tick(0);
+    expect(r.loadTranscript).toHaveBeenCalledTimes(2);
+    expect(result.current.transcriptFor(c)).toEqual([{ t: 1, speaker: 'AI', text: 'Hello' }]);
+    await tick(5000);
+    result.current.transcriptFor(c);
+    expect(r.loadTranscript).toHaveBeenCalledTimes(2);
+  });
+
   it('addLead and addCampaign return the saved record, or null when the insert fails', async () => {
     const { result } = await start();
     const { id: _l, ...newLead } = lead({ status: 'Queued', currentPlan: 'Red', source: 'Web form' });
@@ -296,6 +315,70 @@ describe('live mode', () => {
       call({ leadId: '3', connected: true, outcome: 'Not interested', duration: 30 }),
     ])).toEqual({ attempted: 3, connected: 3, warm: 1, qualified: 1, minutes: 3 });
   });
+});
+
+describe('handover', () => {
+  const rep = toMember({ id: 'u2', full_name: 'Ronan Rep', role: 'salesperson', created_at: 'x' });
+  function Drawer() { const app = useApp(); return <HandoverDrawer lead={app.leads[0] ?? null} calls={[]} onClose={() => {}} actingRepId="u2" />; }
+  const open = async (o: Partial<Lead>) => {
+    r.loadAll.mockResolvedValue(data({ leads: [lead({ status: 'Callback requested', phone: '+353871234567', ...o })], team: [rep] }));
+    render(<MemoryRouter><AppProvider><ConfirmProvider><Drawer /></ConfirmProvider></AppProvider></MemoryRouter>);
+    await tick(0);
+  };
+
+  it('Accept and Assign write the status, which takes a callback lead off the dialler', async () => {
+    await open({});
+    fireEvent.click(screen.getByRole('button', { name: 'Accept handover' }));
+    expect(r.saveLead).toHaveBeenLastCalledWith('1', expect.objectContaining({ assigned_to: 'u2', sales_status: 'Callback requested' }));
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'u2' } });
+    expect(r.saveLead).toHaveBeenLastCalledWith('1', expect.objectContaining({ assigned_to: 'u2', sales_status: 'Callback requested' }));
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: '' } }); // unassigning holds nothing back
+    expect(r.saveLead.mock.lastCall?.[1]).not.toHaveProperty('sales_status');
+  });
+
+  it('Do not call goes through suppression, and Queued is not offered', async () => {
+    await open({ status: 'Warm' });
+    const status = screen.getAllByRole('combobox')[1] as HTMLSelectElement;
+    expect([...status.options].map((o) => o.value)).not.toContain('Queued');
+    fireEvent.change(status, { target: { value: 'Do not call' } });
+    await tick(0);
+    expect(r.insertSuppression).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Suppress' }));
+    await tick(0);
+    expect(r.insertSuppression).toHaveBeenCalledWith(expect.objectContaining({ phone: '+353871234567' }));
+    expect(r.saveLead).toHaveBeenCalledWith('1', { sales_status: 'Do not call' });
+  });
+
+  it('insights prefer what the call recorded, and keep the canned text without it', () => {
+    const real = call({ connected: true, reason: 'Contract ends in May', nextStep: 'Ring on Tuesday', interestedServices: 'Broadband, Mobile', callbackTime: 'Tuesday after 3', unanswered: [] });
+    const got = leadInsights(lead({ status: 'Callback requested' }), [real]);
+    expect(got).toMatchObject({ reason: 'Contract ends in May', nextAction: 'Ring on Tuesday', requirements: ['Broadband', 'Mobile'], callback: 'Tuesday after 3' });
+    const canned = leadInsights(lead({ status: 'Callback requested', tags: [] }), [call({ connected: true, unanswered: [], objections: [], questions: [] })]);
+    expect(canned.reason).toMatch(/^Asked for a callback/);
+    expect(canned.nextAction).toMatch(/^Call back at/);
+    expect(canned.callback).toBeUndefined();
+  });
+
+  it('demo keeps the plain status list and writes no hold', async () => {
+    h.mode = 'demo';
+    function DemoDrawer() { const app = useApp(); return <HandoverDrawer lead={app.leads[0]} calls={[]} onClose={() => {}} actingRepId={app.team[0].id} />; }
+    render(<MemoryRouter><AppProvider><ConfirmProvider><DemoDrawer /></ConfirmProvider></AppProvider></MemoryRouter>);
+    await tick(0);
+    expect([...(screen.getAllByRole('combobox')[1] as HTMLSelectElement).options].map((o) => o.value)).toContain('Queued');
+    expect(r.saveLead).not.toHaveBeenCalled();
+  });
+});
+
+describe('inCallingWindow', () => {
+  const week = { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], start: '09:00', end: '17:00' };
+  it.each([
+    ['2026-11-02T10:00:00Z', true], // Monday, GMT
+    ['2026-11-02T17:00:00Z', false], // the end is exclusive, as in the dialler
+    ['2026-11-02T08:59:00Z', false],
+    ['2026-11-01T10:00:00Z', false], // Sunday
+    ['2026-07-06T16:30:00Z', false], // 17:30 in Dublin: summer time counts
+    ['2026-07-06T08:30:00Z', true], // 09:30 in Dublin
+  ])('%s -> %s', (at, want) => expect(inCallingWindow(week, new Date(at))).toBe(want));
 });
 
 describe('demo mode', () => {

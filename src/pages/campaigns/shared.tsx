@@ -15,6 +15,13 @@ export const VOICEMAIL_POLICIES = ['Do not leave a message', 'Leave approved com
 export const spendOf = (c: Campaign) => c.minutes * c.costPerMinute;
 export const pctOf = (a: number, b: number) => (b > 0 ? (a / b) * 100 : 0);
 export const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+/** Would the dialler ring now? It reads every campaign's days and hours as Irish time. */
+export function inCallingWindow(s: { days: string[]; start: string; end: string }, now = new Date()): boolean {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Dublin', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now);
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  const minute = +part('hour') * 60 + +part('minute');
+  return s.days.includes(part('weekday')) && minute >= toMin(s.start) && minute < toMin(s.end);
+}
 export const isToday = (iso: string) => startOfDay(new Date(iso)).getTime() === startOfDay(NOW).getTime() || new Date(iso).toDateString() === new Date().toDateString();
 export const daysRange = (days: string[]) => {
   const idx = days.map((d) => WEEKDAYS.indexOf(d)).filter((i) => i >= 0).sort((a, b) => a - b);
@@ -102,6 +109,7 @@ export function EditCampaignModal({ campaign, open, onClose, showName = true }: 
   if (f.dailyCap < 1) errs.dailyCap = 'Must be at least 1';
   if (f.maxAttempts < 1 || f.maxAttempts > 6) errs.maxAttempts = 'Between 1 and 6 (ComReg guidance)';
   if (f.intervalHours < 1) errs.intervalHours = 'At least 1 hour';
+  else if (app.mode === 'live' && !Number.isInteger(f.intervalHours)) errs.intervalHours = 'Use whole hours';
   const hours = app.settings.callingHours;
   const outside = toMin(f.start) < toMin(hours.start) || toMin(f.end) > toMin(hours.end) || f.days.some((d) => !hours.days.includes(d));
   const save = () => {

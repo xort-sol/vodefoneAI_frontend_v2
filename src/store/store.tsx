@@ -133,6 +133,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof repo.loadMe>>>(null);
   const [transcripts, setTranscripts] = useState<Record<string, TranscriptLine[]>>({});
   const transcriptsAsked = useRef(new Set<string>());
+  const transcriptsEmpty = useRef(new Set<string>()); // asked too early: the next refresh lets them be asked again
   const [demoRole, setRoleState] = useState<Role>(() => { try { return (localStorage.getItem('vf-role') as Role) || 'Super Admin'; } catch { return 'Super Admin'; } });
   // Live: the profile decides. Analyst, the least privileged role, covers the moment before it arrives.
   const role: Role = live ? (profile?.role && toRole(profile.role)) || 'Analyst' : demoRole;
@@ -188,6 +189,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!signedIn) { writes.current++; setState((s) => ({ ...s, ...LIVE_EMPTY })); setLoadError(null); return; }
       if (!signedIn.role) { setLoadError('Your account has no role yet. Ask an administrator to assign one.'); return; }
       const data = await repo.loadAll();
+      for (const id of transcriptsEmpty.current) transcriptsAsked.current.delete(id);
+      transcriptsEmpty.current.clear();
       if (started === writes.current) setState((s) => ({ ...s, ...data }));
       setLoadError(null);
     } catch (e) {
@@ -270,7 +273,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (!transcriptsAsked.current.has(c.id)) {
           transcriptsAsked.current.add(c.id);
           repo.loadTranscript(c.id).then(
-            (lines) => setTranscripts((t) => ({ ...t, [c.id]: lines })),
+            (lines) => { if (!lines.length) transcriptsEmpty.current.add(c.id); setTranscripts((t) => ({ ...t, [c.id]: lines })); },
             () => transcriptsAsked.current.delete(c.id), // the next render asks again
           );
         }

@@ -122,6 +122,8 @@ export interface Call {
   failureReason?: string;
   qualification?: { need: number; budget: number; timeline: number; authority: number }; // 0-25 each, real calls only
   simulated: boolean;
+  // Live only, from the call and its analysis
+  reason?: string; nextStep?: string; interestedServices?: string; callbackTime?: string;
 }
 
 export interface Product {

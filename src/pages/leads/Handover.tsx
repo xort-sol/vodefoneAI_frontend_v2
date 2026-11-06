@@ -27,7 +27,7 @@ const TAG_REQ: Record<string, string> = {
 
 export interface Insights {
   calls: Call[]; latest?: Call; latestConnected?: Call; reason: string; requirements: string[]; objections: string[]; questions: string[]; unanswered: string[];
-  nextAction: string; deadline: string | null; overdue: boolean;
+  nextAction: string; deadline: string | null; overdue: boolean; callback?: string;
 }
 export function leadInsights(lead: Lead, calls: Call[], product?: Product): Insights {
   const connected = calls.filter((c) => c.connected);
@@ -38,26 +38,27 @@ export function leadInsights(lead: Lead, calls: Call[], product?: Product): Insi
   const pName = product?.name ?? 'the offer';
   const intent = latestConnected?.intent ?? 0;
   const ctx = `Currently on ${lead.currentPlan}${lead.tenureMonths ? ` (${lead.tenureMonths} months tenure)` : ''}${lead.tags.includes('Renewal due') ? ', in renewal window' : ''}.`;
-  const reason = lead.status === 'Hot' || lead.status === 'Converted' ? `Confirmed need, budget and timeline for ${pName}; buying intent ${intent}/100. ${ctx}`
+  const reason = latestConnected?.reason || (lead.status === 'Hot' || lead.status === 'Converted' ? `Confirmed need, budget and timeline for ${pName}; buying intent ${intent}/100. ${ctx}`
     : lead.status === 'Warm' ? `Interested in ${pName} but wants to ${objections.includes('Needs to discuss with partner') ? 'discuss with their partner' : 'compare details'} before committing. ${ctx}`
       : lead.status === 'Callback requested' ? `Asked for a callback at a more convenient time to hear about ${pName}. ${ctx}`
         : lead.status === 'Unreachable' ? `Not yet reached after ${lead.attempts} attempt${lead.attempts === 1 ? '' : 's'}. ${ctx}`
-          : `Low or no interest expressed in ${pName}. ${ctx}`;
-  const requirements = uniq([...questions.map((q) => Q_REQ[q]).filter(Boolean), ...lead.tags.map((t) => TAG_REQ[t]).filter(Boolean)]);
+          : `Low or no interest expressed in ${pName}. ${ctx}`);
+  const services = (latestConnected?.interestedServices ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const requirements = services.length ? services : uniq([...questions.map((q) => Q_REQ[q]).filter(Boolean), ...lead.tags.map((t) => TAG_REQ[t]).filter(Boolean)]);
   if (!requirements.length && product) requirements.push(product.benefits[0]);
   const priceObj = objections.some((o) => o.toLowerCase().includes('price'));
-  let nextAction = lead.status === 'Converted' ? 'Sale completed — send welcome pack and confirm activation date.'
+  let nextAction = (lead.status !== 'Converted' && latestConnected?.nextStep) || (lead.status === 'Converted' ? 'Sale completed — send welcome pack and confirm activation date.'
     : lead.status === 'Hot' && !lead.assignedRepId ? 'Assign to a product specialist and call within 2 hours while intent is high.'
       : lead.status === 'Hot' ? 'Call to close: confirm plan, address eligibility and place the order.'
         : lead.status === 'Warm' && priceObj ? 'Send a tailored quote including the Together Discount and follow up within 48 hours.'
           : lead.status === 'Warm' ? 'Email the plan summary and book a follow-up call with a specialist.'
             : lead.status === 'Callback requested' ? 'Call back at the customer’s requested time and re-qualify.'
               : lead.status === 'Unreachable' ? 'Try SMS or email before the next call attempt.'
-                : 'Nurture: revisit in a future campaign in 90 days.';
+                : 'Nurture: revisit in a future campaign in 90 days.');
   if (unanswered[0] && lead.status !== 'Converted') nextAction += ` Answer open question: “${unanswered[0]}”.`;
   const deadline = lead.nextFollowUp ?? (lead.lastCallAt ? new Date(new Date(lead.lastCallAt).getTime() + (lead.status === 'Hot' ? 1 : 2) * DAY).toISOString() : null);
   const overdue = !!deadline && new Date(deadline) < NOW && !['Converted', 'Not interested', 'Do not call'].includes(lead.status);
-  return { calls, latest, latestConnected, reason, requirements, objections, questions, unanswered, nextAction, deadline, overdue };
+  return { calls, latest, latestConnected, reason, requirements, objections, questions, unanswered, nextAction, deadline, overdue, callback: latestConnected?.callbackTime };
 }
 
 function Section({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
@@ -91,16 +92,18 @@ export function HandoverDrawer({ lead, calls, onClose, actingRepId, onContact, o
   const canAssign = app.can('leads.assign'); const canEdit = app.can('leads.edit');
   const accepter = actingRepId ?? lead.assignedRepId ?? (app.me.role === 'Sales Representative' ? app.me.id : undefined);
 
+  // Live: writing the shown status sets sales_status, which is what takes a lead off the dialler
+  const hold = app.mode === 'live' ? { status: lead.status } : {};
   const assign = (repId: string) => {
     const r = app.memberById.get(repId);
-    app.updateLead(lead.id, { assignedRepId: repId || null, tags: lead.tags.filter((x) => x !== 'Handover accepted') });
+    app.updateLead(lead.id, { assignedRepId: repId || null, tags: lead.tags.filter((x) => x !== 'Handover accepted'), ...(repId ? hold : {}) });
     app.audit('Assigned lead', `${lead.name} (${lead.id}) → ${r?.name ?? 'Unassigned'}`, 'Data');
     app.toast(repId ? 'Lead assigned' : 'Lead unassigned', repId ? `${lead.name} → ${r?.name}` : lead.name);
   };
   const accept = () => {
     if (!accepter) return;
     const r = app.memberById.get(accepter);
-    app.updateLead(lead.id, { assignedRepId: accepter, tags: uniq([...lead.tags, 'Handover accepted']) });
+    app.updateLead(lead.id, { assignedRepId: accepter, tags: uniq([...lead.tags, 'Handover accepted']), ...hold });
     app.addNote(lead.id, `Handover accepted by ${r?.name}. AI summary and transcript reviewed.`);
     app.audit('Accepted handover', `${lead.name} (${lead.id})`, 'Data');
     app.toast('Handover accepted', `${r?.name} now owns ${lead.name}`);
@@ -119,7 +122,16 @@ export function HandoverDrawer({ lead, calls, onClose, actingRepId, onContact, o
     app.audit('Disqualified lead', `${lead.name} (${lead.id}) · ${reason}`, 'Data');
     app.toast('Lead disqualified', `${lead.name} → ${status}`);
   };
-  const setStatus = (s: LeadStatus) => { app.updateLead(lead.id, { status: s }); app.audit('Changed lead status', `${lead.name} → ${s}`, 'Data'); app.toast('Status updated', `${lead.name} → ${s}`); };
+  const setStatus = async (s: LeadStatus) => {
+    if (app.mode === 'live' && s === 'Do not call') {
+      if (!(await confirm({ title: 'Add to suppression list?', desc: `${lead.phone} will be marked do-not-call and excluded from every campaign.`, confirmLabel: 'Suppress', danger: true }))) return;
+      if (!app.suppressions.some((x) => x.phone === lead.phone)) app.addSuppression({ phone: lead.phone, name: lead.name, reason: 'Customer opt-out', addedAt: new Date().toISOString(), addedBy: app.me.name });
+      app.updateLead(lead.id, { dnc: true, status: s });
+      app.toast('Number suppressed', `${lead.name} will not be called`);
+      return;
+    }
+    app.updateLead(lead.id, { status: s }); app.audit('Changed lead status', `${lead.name} → ${s}`, 'Data'); app.toast('Status updated', `${lead.name} → ${s}`);
+  };
   const addNote = () => { if (!note.trim()) return; app.addNote(lead.id, note.trim()); setNote(''); app.toast('Note added', lead.name); };
 
   return (
@@ -164,6 +176,7 @@ export function HandoverDrawer({ lead, calls, onClose, actingRepId, onContact, o
             <div className="label">Follow-up deadline</div>
             <div className={`medium mt-8 ${ins.overdue ? 'red' : ''}`} style={{ color: ins.overdue ? undefined : 'var(--ink)' }}>{ins.deadline ? fmtDateTime(ins.deadline) : '—'}</div>
             <div className="xs muted mt-4">{ins.overdue ? <span className="red row gap-4"><AlertTriangle size={12} />Overdue · {fmtRelative(ins.deadline)}</span> : ins.deadline ? fmtRelative(ins.deadline) : 'No deadline set'}</div>
+            {ins.callback && <div className="xs mt-4" style={{ color: 'var(--graphite)' }}>Agreed with customer: “{ins.callback}”</div>}
           </div>
         </div>
 
@@ -172,7 +185,7 @@ export function HandoverDrawer({ lead, calls, onClose, actingRepId, onContact, o
             ['Email', <span className="truncate" key="e">{lead.email}</span>], ['Current plan', `${lead.currentPlan} · ${lead.tenureMonths} mo`],
             ['Product interest', <span key="p">{product?.name} <span className="muted">· {product ? fmtEUR(product.monthlyPrice) : ''}/mo · {product?.contractMonths} mo</span></span>],
             ['Campaign', lead.campaignId ? <Link key="c" to={`/campaigns/${lead.campaignId}`}>{app.campaignById.get(lead.campaignId)?.name}</Link> : '—'],
-            ['Sentiment', <StatusBadge key="s" status={lead.sentiment} dot={false} />], ['Status', canEdit ? <select key="st" className="select sm soft" style={{ width: 180, height: 28 }} value={lead.status} onChange={(e) => setStatus(e.target.value as LeadStatus)}>{LEAD_STATUSES.map((s) => <option key={s}>{s}</option>)}</select> : lead.status],
+            ['Sentiment', <StatusBadge key="s" status={lead.sentiment} dot={false} />], ['Status', canEdit ? <select key="st" className="select sm soft" style={{ width: 180, height: 28 }} value={lead.status} onChange={(e) => setStatus(e.target.value as LeadStatus)}>{LEAD_STATUSES.filter((s) => app.mode !== 'live' || s !== 'Queued').map((s) => <option key={s}>{s}</option>)}</select> : lead.status],
           ]} />
         </Section>
 

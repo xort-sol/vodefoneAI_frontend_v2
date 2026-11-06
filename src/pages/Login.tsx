@@ -4,7 +4,7 @@ import { ArrowRight, KeyRound, ShieldCheck, PhoneCall, BadgeCheck, FlaskConical 
 import { Button, Field, Badge } from '../components/ui';
 import { useApp } from '../store/store';
 import { DAY, NOW } from '../data/seed';
-import { getMode, signInLive } from '../live/client';
+import { getMode, setMode, signInLive } from '../live/client';
 import type { Role } from '../data/types';
 
 export default function Login() {
@@ -67,14 +67,18 @@ export default function Login() {
             <Button variant="ghost" onClick={() => { setStep('creds'); setErr({}); }}>Back</Button>
           </form>
         )}
-        <div className="banner sim mt-24"><FlaskConical /><div>Demonstration environment. Data is synthetic and calls are simulated — no real customers are contacted.</div></div>
+        {live
+          ? <Button variant="ghost" className="mt-24" onClick={() => { setMode('demo'); window.location.reload(); }}>Use demo data instead</Button>
+          : <div className="banner sim mt-24"><FlaskConical /><div>Demonstration environment. Data is synthetic and calls are simulated — no real customers are contacted.</div></div>}
       </div>
       <div className="auth-side dotgrid">
         <div className="card feature" style={{ width: 440, maxWidth: '100%' }}>
-          <div className="row between"><span className="label">Live operations</span><Badge tone="green" dot live>Simulated</Badge></div>
-          <div className="display mt-12" style={{ fontSize: 48, lineHeight: 1 }}>{monthCalls.toLocaleString('en-GB')}</div>
-          <div className="subtle small mt-4">AI calls placed in the last 30 days</div>
-          <div className="divider" />
+          {!live && <>
+            <div className="row between"><span className="label">Live operations</span><Badge tone="green" dot live>Simulated</Badge></div>
+            <div className="display mt-12" style={{ fontSize: 48, lineHeight: 1 }}>{monthCalls.toLocaleString('en-GB')}</div>
+            <div className="subtle small mt-4">AI calls placed in the last 30 days</div>
+            <div className="divider" />
+          </>}
           <div className="col gap-12">
             {[
               [<PhoneCall size={15} key="a" />, 'AI agent introduces the right offer', 'Approved pricing, compliant disclosure'],

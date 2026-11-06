@@ -25,7 +25,8 @@ export default function CampaignDetail() {
   const app = useApp(); const nav = useNavigate();
   const isLive = app.mode === 'live';
   const [sp, setSp] = useSearchParams();
-  const tab = (sp.get('tab') as Tab) || 'performance';
+  const asked = (sp.get('tab') as Tab) || 'performance';
+  const tab = isLive && asked === 'activity' ? 'performance' : asked; // campaignHistory invents its dates; Live has no audit trail to show
   const setTab = (t: Tab) => { const n = new URLSearchParams(sp); if (t === 'performance') n.delete('tab'); else n.set('tab', t); setSp(n, { replace: true }); };
   const [editOpen, setEditOpen] = useState(false);
   const [span, setSpan] = useState<'14' | '30' | '90'>('30');
@@ -132,7 +133,7 @@ export default function CampaignDetail() {
       <Tabs value={tab} onChange={setTab} tabs={[
         { value: 'performance', label: 'Performance' }, { value: 'calls', label: 'Calls', count: calls.length },
         { value: 'qualified', label: 'Qualified leads', count: qualifiedLeads.length }, { value: 'config', label: 'Configuration' },
-        { value: 'activity', label: 'Activity', count: history.length },
+        ...(isLive ? [] : [{ value: 'activity' as const, label: 'Activity', count: history.length }]),
       ]} />
 
       {tab === 'performance' && (<>

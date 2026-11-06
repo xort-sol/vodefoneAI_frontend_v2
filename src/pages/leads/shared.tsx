@@ -175,7 +175,7 @@ export function LeadFormModal({ open, onClose, lead, onSaved }: { open: boolean;
   };
 
   return (
-    <Modal open={open} onClose={onClose} size="lg" title={lead ? `Edit lead · ${lead.id}` : 'Add lead'} desc={lead ? undefined : 'Create a single lead record. Consent and suppression are checked before any simulated call.'}
+    <Modal open={open} onClose={onClose} size="lg" title={lead ? `Edit lead · ${lead.id}` : 'Add lead'} desc={lead ? undefined : `Create a single lead record. Consent and suppression are checked before any ${app.mode === 'live' ? '' : 'simulated '}call.`}
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={save}>{lead ? 'Save changes' : 'Add lead'}</Button></>}>
       <div className="form-grid">
         <Field label="Full name" required error={err('name')}><input className={`input ${err('name') ? 'invalid' : ''}`} value={f.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Amelia Hughes" /></Field>
@@ -190,7 +190,7 @@ export function LeadFormModal({ open, onClose, lead, onSaved }: { open: boolean;
             {app.products.filter((p) => p.availability !== 'Retired').map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </Field>
-        <Field label="Campaign" hint="Leads in a campaign are queued for simulated AI calls">
+        <Field label="Campaign" hint={`Leads in a campaign are queued for ${app.mode === 'live' ? '' : 'simulated '}AI calls`}>
           <select className="select" value={f.campaignId} onChange={(e) => { const c = app.campaignById.get(e.target.value); setF((x) => ({ ...x, campaignId: e.target.value, productInterest: x.productInterest || c?.productId || '' })); }}>
             <option value="">No campaign</option>
             {app.campaigns.filter((c) => !['Completed', 'Stopped'].includes(c.status)).map((c) => <option key={c.id} value={c.id}>{c.name} · {c.status}</option>)}

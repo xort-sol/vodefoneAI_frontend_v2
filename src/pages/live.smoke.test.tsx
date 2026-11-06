@@ -12,6 +12,8 @@ vi.mock('../live/liveCalls', async (actual) => ({ ...(await actual<typeof import
 
 import * as repo from '../live/repo';
 import { fetchLiveRooms, joinCall } from '../live/liveCalls';
+import { setMode } from '../live/client';
+import { agents } from '../data/seed';
 import { toCall, toCampaign, toLead, toMember } from '../live/adapters';
 import { AppProvider } from '../store/store';
 import { ConfirmProvider } from '../components/ui';
@@ -25,7 +27,9 @@ import CampaignDetail from './CampaignDetail';
 import Conversations from './Conversations';
 import ConversationDetail from './ConversationDetail';
 import { LeadFormModal } from './leads/shared';
+import { CsvImportModal } from './leads/Importers';
 import Qualified from './Qualified';
+import Login from './Login';
 import CallHistory from './CallHistory';
 
 const r = vi.mocked(repo);
@@ -127,6 +131,125 @@ describe('Live review fixes', () => {
     expect(r.saveLead).toHaveBeenCalledTimes(1);
     expect(onSaved.mock.calls[0][0].phone).toBe(dup);
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+describe('final review fixes', () => {
+  const ready = { status: 'new', consent: true, customer_type: 'Consumer', created_at: iso };
+  const running = (o = {}) => toCampaign({ id: 2, name: 'Spring', status: 'running', created_at: iso, agent_ref: agents[0].id, ...o }, {});
+
+  it('Exclusions stores the number as the dialler will match it', async () => {
+    r.loadAll.mockResolvedValue(empty());
+    await show('/calling', <Calling />, '/calling');
+    const input = screen.getByPlaceholderText('+353 87 123 4567');
+    fireEvent.change(input, { target: { value: '12345' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add to suppression list' }));
+    expect(r.insertSuppression).not.toHaveBeenCalled();
+    fireEvent.change(input, { target: { value: '+353 87 123 4567' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add to suppression list' }));
+    expect(r.insertSuppression).toHaveBeenCalledWith(expect.objectContaining({ phone: '+353871234567' }));
+  });
+
+  it('Exclusions finds a lead and an existing entry whichever way the number is typed', async () => {
+    r.insertSuppression.mockClear();
+    r.loadAll.mockResolvedValue({ ...empty(), leads: [toLead({ ...ready, id: 1, name: 'Rita', phone: '+353871234567' }, [])], suppressions: [{ id: '+353871111111', phone: '+353871111111', name: 'X', reason: 'Customer opt-out', addedAt: iso, addedBy: 'manual' }] });
+    await show('/calling', <Calling />, '/calling');
+    const input = screen.getByPlaceholderText('+353 87 123 4567');
+    fireEvent.change(input, { target: { value: '087 123 4567' } });
+    expect(screen.getByText(/Matches lead Rita/)).toBeTruthy();
+    fireEvent.change(input, { target: { value: '087 111 1111' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add to suppression list' }));
+    expect(screen.getByText('This number is already suppressed')).toBeTruthy();
+    expect(r.insertSuppression).not.toHaveBeenCalled();
+  });
+
+  it('Overview agent performance comes from real calls, not the seed', async () => {
+    const c = running();
+    r.loadAll.mockResolvedValue({ ...empty(), campaigns: [c], calls: [
+      toCall({ id: 3, lead_id: 1, campaign_id: 2, outcome: 'interested', duration_s: 60, created_at: iso, analyses: { score: 90 } }, { agent_ref: agents[0].id }),
+      toCall({ id: 4, lead_id: 1, campaign_id: 2, outcome: 'no_answer', created_at: iso, analyses: null }, { agent_ref: agents[0].id }),
+    ] });
+    await show('/', <Overview />, '/');
+    expect(screen.getByText('2 calls · avg 1:00')).toBeTruthy();
+    expect(screen.getAllByText('100.0%').length).toBeGreaterThan(0);
+    expect(screen.queryByText(agents[1].name)).toBeNull();
+  });
+
+  it('Available AI agents counts the agents on running campaigns', async () => {
+    r.loadAll.mockResolvedValue({ ...empty(), campaigns: [running()] });
+    await show('/calling', <Calling />, '/calling');
+    const card = screen.getByText('Available AI agents').closest('.kpi') as HTMLElement;
+    expect(card.textContent).toContain('1');
+    expect(card.textContent).not.toContain('offline');
+  });
+
+  it('Login shows no demo copy in Live and offers demo data as the backup', async () => {
+    r.loadAll.mockResolvedValue(empty());
+    await show('/login', <Login />, '/login');
+    expect(document.body.textContent).not.toMatch(/Simulated|no real customers|calls placed/);
+    fireEvent.click(screen.getByRole('button', { name: 'Use demo data instead' }));
+    expect(setMode).toHaveBeenCalledWith('demo');
+  });
+
+  it('a campaign has no invented activity tab, even from an old link', async () => {
+    r.loadAll.mockResolvedValue({ ...empty(), campaigns: [running()] });
+    await show('/campaigns/2?tab=activity', <CampaignDetail />, '/campaigns/:id');
+    expect(screen.queryByText('Activity')).toBeNull();
+    expect(screen.queryByText('Campaign activity')).toBeNull();
+    expect(screen.getByText('Total leads')).toBeTruthy();
+  });
+
+  it('the wizard wants whole retry hours, warns of real calls and offers no Schedule', async () => {
+    r.loadAll.mockResolvedValue({ ...empty(), leads: [toLead({ ...ready, id: 1, name: 'Rita', phone: '+353871234567' }, [])] });
+    await show('/campaigns/new', <CampaignWizard />, '/campaigns/new');
+    const next = () => fireEvent.click(screen.getByRole('button', { name: /^Next:/ }));
+    fireEvent.change(screen.getByPlaceholderText(/Spring Renewal/), { target: { value: 'New one' } });
+    const objective = screen.getAllByRole('combobox')[0] as HTMLSelectElement;
+    fireEvent.change(objective, { target: { value: objective.options[1].value } });
+    next(); next();
+    fireEvent.click(document.querySelector('.option-card:not([disabled])')!);
+    next();
+    fireEvent.click(document.querySelector('.option-card:not([disabled])')!);
+    next(); next();
+    const interval = screen.getByLabelText(/Retry interval/) as HTMLInputElement;
+    fireEvent.change(interval, { target: { value: '1.5' } });
+    next();
+    expect(screen.getAllByText(/Use whole hours/).length).toBeGreaterThan(0);
+    fireEvent.change(interval, { target: { value: '4' } });
+    next();
+    expect(screen.getByText('This will place real calls to allowlisted numbers.')).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/simulated|Recording (enabled|disabled)/i);
+    expect(screen.queryByRole('button', { name: /^Schedule for/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Launch now' })).toBeTruthy();
+  });
+
+  it('the importer has no sample file in Live', async () => {
+    r.loadAll.mockResolvedValue(empty());
+    await show('/', <CsvImportModal open onClose={() => {}} />, '/');
+    expect(screen.getByText(/Expected columns/)).toBeTruthy();
+    expect(screen.queryByText('Use sample file')).toBeNull();
+  });
+
+  it('labels real calls as real', async () => {
+    r.loadAll.mockResolvedValue(rows());
+    await show('/conversations/3', <ConversationDetail />, '/conversations/:id');
+    expect(document.body.textContent).not.toMatch(/simulated/i);
+    cleanup();
+    await show('/leads/1', <LeadProfile />, '/leads/:id');
+    expect(document.body.textContent).not.toMatch(/simulated/i);
+  });
+
+  it('a downloaded real transcript does not claim to be demo data', async () => {
+    let text = '';
+    vi.stubGlobal('Blob', class { constructor(parts: string[]) { [text] = parts; } });
+    URL.createObjectURL = () => 'blob:x';
+    URL.revokeObjectURL = () => {};
+    r.loadAll.mockResolvedValue(rows());
+    r.loadTranscript.mockResolvedValueOnce([{ t: 1, speaker: 'AI', text: 'Hello' }]);
+    await show('/conversations/3', <ConversationDetail />, '/conversations/:id');
+    fireEvent.click(screen.getByRole('button', { name: /Download transcript/ }));
+    expect(text).toContain('Conversation 3');
+    expect(text).not.toMatch(/SIMULATED/);
   });
 });
 

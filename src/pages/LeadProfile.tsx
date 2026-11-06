@@ -206,7 +206,7 @@ export default function LeadProfile() {
                 <div style={{ color: 'var(--graphite)', lineHeight: 1.6 }}>{lead.aiSummary || 'This lead has not been contacted by an AI agent yet.'}</div>
               </Card>
               <div className="grid g-2">
-                <Card title="Eligibility & compliance" sub={elig.ok ? 'Eligible for simulated AI calling' : `${elig.reasons.length} blocker${elig.reasons.length > 1 ? 's' : ''}`} actions={elig.ok ? <Badge tone="green" dot>Eligible</Badge> : <Badge tone="red" dot>Blocked</Badge>}>
+                <Card title="Eligibility & compliance" sub={elig.ok ? `Eligible for ${app.mode === 'live' ? '' : 'simulated '}AI calling` : `${elig.reasons.length} blocker${elig.reasons.length > 1 ? 's' : ''}`} actions={elig.ok ? <Badge tone="green" dot>Eligible</Badge> : <Badge tone="red" dot>Blocked</Badge>}>
                   <div className="col" style={{ gap: 10 }}>
                     {checks.map(([label, ok, sub]) => (
                       <div key={label} className="row" style={{ alignItems: 'flex-start' }}>
@@ -239,7 +239,7 @@ export default function LeadProfile() {
                 <div>
                   {calls.map((c) => <CallRow key={c.id} call={c} lead={lead} open={openCall === c.id} onToggle={() => setOpenCall(openCall === c.id ? null : c.id)} />)}
                 </div>
-              ) : <EmptyState icon={<PhoneCall size={18} />} title="No calls yet" desc="Simulated AI calls will appear here once the lead has been attempted." />}
+              ) : <EmptyState icon={<PhoneCall size={18} />} title="No calls yet" desc={`${app.mode === 'live' ? 'AI' : 'Simulated AI'} calls will appear here once the lead has been attempted.`} />}
             </Card>
           )}
 
@@ -378,7 +378,7 @@ export default function LeadProfile() {
         footer={<Button variant="primary" onClick={() => setBlocked(null)}>Got it</Button>}>
         <div className="col gap-8">
           {blocked?.map((r) => <div key={r} className="banner warn"><ShieldCheck />{r}</div>)}
-          <div className="xs muted">Checks run automatically before every simulated AI call and are recorded in the audit log.</div>
+          <div className="xs muted">Checks run automatically before every {app.mode === 'live' ? '' : 'simulated '}AI call and are recorded in the audit log.</div>
         </div>
       </Modal>
     </>

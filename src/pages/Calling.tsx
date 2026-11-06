@@ -10,6 +10,7 @@ import {
 } from '../components/ui';
 import { fmtDur, fmtEUR, fmtInt, fmtPct, fmtRelative, fmtTime } from '../lib/format';
 import type { CallOutcome, Campaign, Suppression } from '../data/types';
+import { normaliseIrishPhone } from './leads/shared';
 import { EditCampaignModal, daysRange, isToday, pctOf, useCampaignActions, ModulePage } from './campaigns/shared';
 
 const QUEUE_STATUSES = ['Queued', 'New', 'Contacted', 'Callback requested'];
@@ -45,7 +46,8 @@ export default function Calling() {
   const queue = useMemo(() => app.leads.filter((l) => l.campaignId && activeCampIds.has(l.campaignId) && QUEUE_STATUSES.includes(l.status) && app.eligibility(l).ok)
     .sort((a, b) => (a.status === 'Callback requested' ? -1 : 0) - (b.status === 'Callback requested' ? -1 : 0) || a.attempts - b.attempts || b.tenureMonths - a.tenureMonths),
   [app.leads, activeCampIds, app.eligibility]);
-  const liveAgents = app.agents.filter((a) => a.status === 'Live');
+  // Live: the seed agents' statuses mean nothing, so count the agents real campaigns are using
+  const liveAgents = app.agents.filter((a) => (isLive ? app.campaigns.some((c) => c.status === 'Active' && c.agentId === a.id) : a.status === 'Live'));
   const busyAgents = new Set(app.live.map((l) => l.agentId).filter(Boolean));
   const capPct = pctOf(app.live.length, s.maxConcurrent);
   const dailyPct = pctOf(today.total, s.dailyCap);
@@ -107,7 +109,7 @@ export default function Calling() {
         <KpiCard label="Calls in queue" icon={<ListOrdered size={13} />} value={fmtInt(queue.length)} hint={<span>eligible leads in {activeCampIds.size} active campaigns</span>} onClick={() => document.getElementById('queue')?.scrollIntoView({ behavior: 'smooth' })} />
         <KpiCard label="Completed today" icon={<CheckCircle2 size={13} />} value={fmtInt(today.total)} hint={isLive ? undefined : <span>{fmtInt(sessionCalls.length)} simulated this session</span>} onClick={() => nav('/history')} />
         <KpiCard label="Failed today" icon={<XCircle size={13} />} value={fmtInt(today.failed)} hint={<span>{fmtPct(pctOf(today.failed, today.total))} technical failure rate</span>} onClick={() => nav('/history?outcome=Failed')} />
-        <KpiCard label="Available AI agents" icon={<Bot size={13} />} value={`${liveAgents.length}`} hint={<span>{busyAgents.size} handling calls · {app.agents.length - liveAgents.length} offline/testing</span>} onClick={() => nav('/agents')} />
+        <KpiCard label="Available AI agents" icon={<Bot size={13} />} value={`${liveAgents.length}`} hint={<span>{busyAgents.size} handling calls{isLive ? '' : ` · ${app.agents.length - liveAgents.length} offline/testing`}</span>} onClick={() => nav('/agents')} />
         <KpiCard label="Avg. call duration" icon={<Timer size={13} />} value={fmtDur(today.avg)} hint={<span>connected calls today</span>} />
         <KpiCard label="Minutes today" icon={<Clock size={13} />} value={fmtInt(today.minutes)} hint={<span>{fmtEUR(today.cost, 2)} estimated spend</span>} />
         <div className="card kpi">
@@ -521,9 +523,12 @@ function Exclusions() {
   const [name, setName] = useState('');
   const [reason, setReason] = useState<Suppression['reason']>('Customer opt-out');
   const [touched, setTouched] = useState(false);
-  const norm = phone.replace(/\s+/g, ' ').trim();
+  const typed = phone.replace(/\s+/g, ' ').trim();
+  const e164 = app.mode === 'live' ? normaliseIrishPhone(typed) : null; // the dialler matches suppression on the exact stored form
+  const norm = e164 ?? typed;
   const digits = norm.replace(/\D/g, '');
-  const error = !norm ? 'Enter a phone number' : !/^\+?[\d\s]+$/.test(norm) || digits.length < 10 || digits.length > 13 ? 'Enter a valid Irish number, e.g. +353 87 123 4567' : app.suppressions.some((s) => s.phone.replace(/\D/g, '') === digits) ? 'This number is already suppressed' : '';
+  const invalid = app.mode === 'live' ? !e164 : !/^\+?[\d\s]+$/.test(norm) || digits.length < 10 || digits.length > 13;
+  const error = !norm ? 'Enter a phone number' : invalid ? 'Enter a valid Irish number, e.g. +353 87 123 4567' : app.suppressions.some((s) => s.phone.replace(/\D/g, '') === digits) ? 'This number is already suppressed' : '';
   const matchLead = digits.length >= 10 ? app.leads.find((l) => l.phone.replace(/\D/g, '') === digits) : undefined;
   const add = () => {
     setTouched(true);

@@ -91,7 +91,13 @@ export default function Overview() {
     ...c, connectRate: c.attempted ? (c.connected / Math.max(1, c.attempted * 1.6)) * 100 : 0, qualRate: c.connected ? (c.qualified / c.connected) * 100 : 0, cost: c.minutes * c.costPerMinute,
   })).sort((a, b) => b.qualified - a.qualified);
 
-  const agentPerf = [...app.agents].filter((a) => a.totalCalls > 0).sort((a, b) => b.qualificationRate - a.qualificationRate);
+  const agentPerf = (isLive ? app.agents.map((a) => {
+    const calls = app.calls.filter((c) => c.agentId === a.id); const connected = calls.filter((c) => c.connected);
+    return {
+      ...a, totalCalls: calls.length, avgDuration: connected.reduce((s, c) => s + c.duration, 0) / (connected.length || 1),
+      qualificationRate: (connected.filter((c) => c.outcome === 'Qualified').length / (connected.length || 1)) * 100,
+    };
+  }) : [...app.agents]).filter((a) => a.totalCalls > 0).sort((a, b) => b.qualificationRate - a.qualificationRate);
 
   const heat = useMemo(() => {
     const grid: number[][] = Array.from({ length: 7 }, () => Array(11).fill(0));

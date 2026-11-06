@@ -69,7 +69,7 @@ export function CsvImportModal({ open, onClose }: { open: boolean; onClose: () =
   };
   const onFile = (f: File | undefined) => {
     if (!f) return;
-    if (/\.(xlsx|xls)$/i.test(f.name)) { setError(`“${f.name}” is an Excel workbook. Excel parsing runs on the import service (backend integration point) — in this demo, save the sheet as CSV or use the sample file.`); return; }
+    if (/\.(xlsx|xls)$/i.test(f.name)) { setError(`“${f.name}” is an Excel workbook. Excel parsing runs on the import service (backend integration point) — ${app.mode === 'live' ? 'save the sheet as CSV' : 'in this demo, save the sheet as CSV or use the sample file'}.`); return; }
     if (!/\.(csv|txt|tsv)$/i.test(f.name)) { setError('Unsupported file type. Upload a .csv file.'); return; }
     if (f.size > 5 * 1024 * 1024) { setError('File is larger than 5 MB.'); return; }
     const r = new FileReader();
@@ -177,7 +177,7 @@ export function CsvImportModal({ open, onClose }: { open: boolean; onClose: () =
           {error && <div className="banner warn"><AlertTriangle />{error}</div>}
           <div className="row between">
             <div className="small muted">Expected columns: name, phone, email, customer type, product, city, current plan, tags, consent.</div>
-            <Button size="sm" icon={<Sparkles />} onClick={useSample}>Use sample file</Button>
+            {app.mode !== 'live' && <Button size="sm" icon={<Sparkles />} onClick={useSample}>Use sample file</Button>}
           </div>
         </div>
       )}
@@ -207,7 +207,7 @@ export function CsvImportModal({ open, onClose }: { open: boolean; onClose: () =
           {missingRequired.length > 0 && <div className="banner warn"><AlertTriangle />Map the required field{missingRequired.length > 1 ? 's' : ''}: {missingRequired.map((t) => t.label).join(', ')}.</div>}
           <div className="form-grid">
             <Field label="Default product" hint="Used when the product column is missing or unrecognised"><select className="select" value={defaultProduct} onChange={(e) => setDefaultProduct(e.target.value)}>{app.products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
-            <Field label="Add to campaign" hint="Consented leads are queued for simulated AI calls"><select className="select" value={campaignId} onChange={(e) => setCampaignId(e.target.value)}><option value="">Don’t add to a campaign</option>{app.campaigns.filter((c) => ['Active', 'Paused', 'Scheduled', 'Draft'].includes(c.status)).map((c) => <option key={c.id} value={c.id}>{c.name} · {c.status}</option>)}</select></Field>
+            <Field label="Add to campaign" hint={`Consented leads are queued for ${app.mode === 'live' ? '' : 'simulated '}AI calls`}><select className="select" value={campaignId} onChange={(e) => setCampaignId(e.target.value)}><option value="">Don’t add to a campaign</option>{app.campaigns.filter((c) => ['Active', 'Paused', 'Scheduled', 'Draft'].includes(c.status)).map((c) => <option key={c.id} value={c.id}>{c.name} · {c.status}</option>)}</select></Field>
           </div>
         </div>
       )}

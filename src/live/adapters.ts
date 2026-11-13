@@ -1,7 +1,7 @@
 // Pure database-row to screen-model adapters for Live mode. No Supabase calls here.
 import type { Call, CallOutcome, Campaign, Lead, LeadStatus, Role, Suppression, TeamMember, TranscriptLine } from '../data/types';
 import { products, initialsOf } from '../data/seed';
-import { classify } from '../lib/scoring';
+import { classify, type Classification } from '../lib/scoring';
 
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -19,9 +19,10 @@ const LEAD_STATUS: Record<string, LeadStatus> = {
   new: 'New', dialling: 'Contacted', retry: 'Contacted', callback: 'Callback requested',
   closed: 'Not interested', exhausted: 'Unreachable', do_not_call: 'Do not call',
 };
+const INTERESTED_STATUS: Record<Classification, LeadStatus> = { hot: 'Hot', warm: 'Warm', developing: 'Cold', low: 'Cold' };
 export function toLeadStatus(row: Row): LeadStatus {
   if (row.sales_status) return row.sales_status as LeadStatus;
-  if (row.status === 'interested') return classify(row.score ?? 0) === 'hot' ? 'Hot' : 'Warm';
+  if (row.status === 'interested') return INTERESTED_STATUS[classify(row.score ?? 0)]; // by the matrix, not just the yes
   return LEAD_STATUS[row.status] ?? 'New';
 }
 // Queueing never touches sales_status: clearing it would hand a lead a rep holds back to the dialler

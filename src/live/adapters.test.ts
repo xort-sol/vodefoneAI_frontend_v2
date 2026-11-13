@@ -29,7 +29,8 @@ describe('toRole', () => {
 describe('toLeadStatus', () => {
   it.each([
     ['new', 10, 'New'], ['dialling', 10, 'Contacted'], ['retry', 10, 'Contacted'], ['callback', 10, 'Callback requested'],
-    ['interested', 80, 'Hot'], ['interested', 79, 'Warm'], ['closed', 10, 'Not interested'],
+    ['interested', 80, 'Hot'], ['interested', 79, 'Warm'], ['interested', 60, 'Warm'], ['interested', 59, 'Cold'],
+    ['interested', 20, 'Cold'], ['closed', 10, 'Not interested'],
     ['exhausted', 10, 'Unreachable'], ['do_not_call', 10, 'Do not call'],
   ])('%s at score %i -> %s', (status, score, want) => expect(toLeadStatus({ status, sales_status: null, score })).toBe(want));
   it('a salesperson decision wins over dialler state', () =>

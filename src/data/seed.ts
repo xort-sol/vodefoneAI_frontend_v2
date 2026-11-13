@@ -103,11 +103,7 @@ export const CURRENT_USER_ID = 'u-001';
 // ---------- agents ----------
 const AGENT_RAW: [string, string, string, string, string, Agent['status'], string][] = [
   ['Ava', 'Ava — Neural (Warm)', 'English (UK)', 'Southern English', 'Warm, consultative and reassuring', 'Live', '#2563EB'],
-  ['Leo', 'Leo — Neural (Confident)', 'English (UK)', 'Northern English', 'Upbeat, concise and confident', 'Live', '#16A34A'],
-  ['Isla', 'Isla — Neural (Calm)', 'English (UK)', 'Scottish', 'Calm, patient and detail-oriented', 'Live', '#7C3AED'],
-  ['Arjun', 'Arjun — Neural (Professional)', 'English (UK)', 'Neutral British', 'Professional, B2B-focused, value-led', 'Live', '#EA580C'],
-  ['Ffion', 'Ffion — Neural (Friendly)', 'English / Welsh', 'Welsh', 'Friendly, bilingual and conversational', 'Testing', '#0A0A0A'],
-  ['Max', 'Max — Neural (Direct)', 'English (UK)', 'Neutral British', 'Direct and efficient for renewals', 'Paused', '#525252'],
+  ['Emily', 'Emily — Neural (Friendly)', 'English (Irish)', 'Irish', 'Friendly, clear and professional', 'Live', '#16A34A'],
 ];
 export const agents: Agent[] = AGENT_RAW.map(([name, voice, language, accent, personality, status, color], i) => ({
   id: `ag-${pad(i + 1, 2)}`, name, initials: name.slice(0, 2).toUpperCase(), color, voice, language, accent, personality, status,
@@ -138,18 +134,18 @@ export const agents: Agent[] = AGENT_RAW.map(([name, voice, language, accent, pe
     { rule: 'Negative sentiment sustained for 30+ seconds', enabled: false },
   ],
 }));
-const AGENT_W: [string, number][] = [['ag-01', 30], ['ag-02', 26], ['ag-03', 20], ['ag-04', 18], ['ag-05', 3], ['ag-06', 3]];
+const AGENT_W: [string, number][] = [['ag-01', 55], ['ag-02', 45]];
 
 // ---------- campaigns ----------
 const CAMP_RAW: [string, string, string | null, string, Campaign['status'], number, number, string][] = [
   ['RED Unlimited Max Renewal Q4', 'p-biz-max', 'o-2', 'ag-01', 'Active', 84, 50, 'Consumer · in renewal window'],
   ['Winter Broadband Switch', 'p-bb-500', 'o-1', 'ag-02', 'Active', 52, 40, 'Business · serviceable address'],
-  ['SIM Only Value Push', 'p-sim-unl', null, 'ag-03', 'Active', 76, 30, 'Consumer · out of contract'],
-  ['SME Business Unlimited', 'p-biz-unl', 'o-3', 'ag-04', 'Active', 38, 80, 'SME · 2–20 employees'],
-  ['Business Broadband Upgrade', 'p-bb-2g', null, 'ag-04', 'Paused', 70, 25, 'Business · legacy broadband'],
-  ['iPhone Upgrade Autumn', 'p-dev-iphone', 'o-5', 'ag-06', 'Completed', 88, -2, 'Consumer · 18+ months tenure'],
+  ['SIM Only Value Push', 'p-sim-unl', null, 'ag-01', 'Active', 76, 30, 'Consumer · out of contract'],
+  ['SME Business Unlimited', 'p-biz-unl', 'o-3', 'ag-02', 'Active', 38, 80, 'SME · 2–20 employees'],
+  ['Business Broadband Upgrade', 'p-bb-2g', null, 'ag-02', 'Paused', 70, 25, 'Business · legacy broadband'],
+  ['iPhone Upgrade Autumn', 'p-dev-iphone', 'o-5', 'ag-01', 'Completed', 88, -2, 'Consumer · 18+ months tenure'],
   ['Gigabit Broadband Early Access', 'p-bb-1g', null, 'ag-02', 'Scheduled', -6, 60, 'Consumer · high-usage households'],
-  ['RED Business Lite Retention', 'p-biz-lite', 'o-2', 'ag-03', 'Draft', -14, 45, 'Consumer · churn risk'],
+  ['RED Business Lite Retention', 'p-biz-lite', 'o-2', 'ag-01', 'Draft', -14, 45, 'Consumer · churn risk'],
 ];
 export const campaigns: Campaign[] = CAMP_RAW.map(([name, productId, offerId, agentId, status, startAgo, endAhead, segment], i) => ({
   id: `CMP-${pad(1040 + i * 7, 4)}`, name, productId, offerId, agentId, status,
@@ -483,7 +479,7 @@ const ACTIONS: [AuditEntry['category'], string, string][] = [
   ['Auth', 'Signed in', 'Web console (SSO)'], ['Campaign', 'Paused campaign', 'Business Broadband Upgrade'], ['Agent', 'Published agent version', 'Ava v3.2.0'],
   ['Data', 'Imported leads', 'renewals_nov.csv (412 rows)'], ['Export', 'Exported report', 'Weekly performance (PDF)'], ['Compliance', 'Added suppression', '+353 8** *** 214'],
   ['Settings', 'Updated calling hours', 'Mon–Fri 09:30–19:30'], ['Data', 'Viewed recording', 'CL-731402'], ['Auth', 'Failed sign-in attempt', 'unknown device'],
-  ['Compliance', 'Approved erasure request', 'DSR-0213'], ['Campaign', 'Launched campaign', 'SME Business Unlimited'], ['Agent', 'Edited objection handling', 'Leo'],
+  ['Compliance', 'Approved erasure request', 'DSR-0213'], ['Campaign', 'Launched campaign', 'SME Business Unlimited'], ['Agent', 'Edited objection handling', 'Emily'],
 ];
 export const auditLog: AuditEntry[] = Array.from({ length: 160 }, (_, i) => {
   const [category, action, target] = pick(ACTIONS);
@@ -495,7 +491,7 @@ const hot = leads.filter((l) => l.status === 'Hot').slice(0, 4);
 export const notifications: Notification[] = [
   ...hot.map((l, i) => ({ id: `NT-${i + 1}`, category: 'Leads' as const, priority: 'High' as const, title: 'New hot lead ready for handover', body: `${l.name} scored ${l.score}/100 for ${products.find((p) => p.id === l.productInterest)!.name}.`, at: iso(new Date(NOW.getTime() - (i * 37 + 6) * 60000)), read: i > 1, link: `/qualified?lead=${l.id}` })),
   { id: 'NT-10', category: 'Capacity', priority: 'High', title: 'Daily calling capacity at 86%', body: 'RED Unlimited Max Renewal Q4 will reach its daily cap of 800 calls in ~1h at the current rate.', at: iso(new Date(NOW.getTime() - 22 * 60000)), read: false, link: '/calling' },
-  { id: 'NT-11', category: 'Agents', priority: 'High', title: 'Agent error rate elevated', body: 'Max returned 4 media-stream errors in the last hour. Agent paused automatically.', at: iso(new Date(NOW.getTime() - 95 * 60000)), read: false, link: '/agents/ag-06' },
+  { id: 'NT-11', category: 'Agents', priority: 'High', title: 'Agent error rate elevated', body: 'Emily returned 4 media-stream errors in the last hour. Agent paused automatically.', at: iso(new Date(NOW.getTime() - 95 * 60000)), read: false, link: '/agents/ag-06' },
   { id: 'NT-12', category: 'Campaigns', priority: 'Medium', title: 'Campaign completed', body: 'iPhone Upgrade Autumn finished with 100% of eligible leads attempted.', at: iso(daysAgo(1, 18)), read: true, link: `/campaigns/${campaigns[5].id}` },
   { id: 'NT-13', category: 'Follow-ups', priority: 'Medium', title: '7 follow-ups overdue', body: 'Several warm leads have passed their follow-up deadline without contact.', at: iso(new Date(NOW.getTime() - 3 * 3600000)), read: false, link: '/workspace' },
   { id: 'NT-14', category: 'Appointments', priority: 'Low', title: 'Appointment confirmed', body: 'Customer confirmed a video consultation for tomorrow at 11:00.', at: iso(new Date(NOW.getTime() - 5 * 3600000)), read: true, link: '/appointments' },

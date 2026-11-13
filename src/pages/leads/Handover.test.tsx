@@ -27,6 +27,11 @@ describe('What we learned', () => {
     expect(text).not.toContain('Other services');
   });
   it('shows nothing for a call with no facts', () => expect(show({})).toBe(''));
+  it('pluralises months left', () => {
+    expect(show({ discovery: { bb_contract: known({ months: 1 }) } })).toContain('1 month left');
+    cleanup();
+    expect(show({ discovery: { bb_contract: known({ months: 3 }) } })).toContain('3 months left');
+  });
 });
 
 describe('Next step', () => {
@@ -36,6 +41,12 @@ describe('Next step', () => {
     expect(text).toMatch(/renewal/i);
     expect(text).toContain('31 Jan 2027');
   });
+  it.each([['unknown', 'Unknown'], ['2027-01-31', '31 Jan 2027'], ['soon', null]])('renewal contract end %s shows %s', (end, want) => {
+    const text = show({ outcome: 'Callback requested', callbackTime: 'Tuesday at 3pm', followUp: { reason: 'renewal', contract_end: end } });
+    expect(text).not.toContain('NaN');
+    if (want) expect(screen.getByText('Contract ends').nextSibling?.textContent).toBe(want);
+    else expect(text).not.toContain('Contract ends');
+  });
   it('field visit is a request awaiting the team', () => {
     const text = show({ outcome: 'Qualified', callbackTime: 'Thursday 10am', followUp: { reason: 'field_visit', visit_address: '1 Main St, Cork', contact_name: 'Ann', attendees: 'Ann and Joe', products: 'Broadband' } });
     for (const s of ['Request — awaiting team confirmation', '1 Main St, Cork', 'Ann and Joe', 'Broadband', 'Thursday 10am']) expect(text).toContain(s);
@@ -44,6 +55,8 @@ describe('Next step', () => {
     const text = show({ outcome: 'Interested', followUp: { reason: 'email', email: 'ann@cafe.ie', products: 'Mobile' } });
     for (const s of ['Not sent yet', 'ann@cafe.ie', 'Mobile']) expect(text).toContain(s);
   });
+  it('a simulated demo transfer shows no next step', () => expect(show({ outcome: 'Transferred to human', simulated: true })).toBe(''));
+  it('a Live transfer with no follow-up still shows it', () => expect(show({ outcome: 'Transferred to human', simulated: false })).toContain('Transferred to a specialist'));
   it('transfer done', () => expect(show({ outcome: 'Transferred to human', followUp: { transfer: 'done' } })).toContain('Transferred to a specialist'));
   it('transfer failed, then a callback', () =>
     expect(show({ outcome: 'Callback requested', callbackTime: 'Friday 2pm', followUp: { reason: 'callback', transfer: 'failed' } })).toContain('Transfer attempted, then callback booked'));

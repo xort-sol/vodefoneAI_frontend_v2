@@ -14,6 +14,11 @@ describe('qualStatus', () => {
     'stored %s -> %s, whatever the score', (classification, want) => expect(qualStatus(call({ score: 50, classification }))).toBe(want));
 });
 
+describe('qualStatus for closed calls', () => {
+  it.each(['Opted out', 'Not interested'] as const)('%s at score 90 is Not qualified', (outcome) =>
+    expect(qualStatus(call({ outcome, score: 90 }))).toBe('Not qualified'));
+});
+
 describe('qualBreakdown', () => {
   it('lists the 11 matrix criteria with their points', () => {
     const b = qualBreakdown(call({ qualification: { decision_maker: 10, employees_5: 0, next_step: 10 } }));

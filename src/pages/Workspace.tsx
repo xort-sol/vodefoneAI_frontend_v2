@@ -12,7 +12,7 @@ import {
 import type { Lead, LeadStatus } from '../data/types';
 import { DAY, NOW, startOfDay } from '../data/seed';
 import { fmtDateShort, fmtDateTime, fmtEUR, fmtInt, fmtPct, fmtRelative, fmtTime } from '../lib/format';
-import { HOT } from '../lib/scoring';
+import { HOT, isPriority } from '../lib/scoring';
 import { PageFix, ScheduleModal, isToday, useCallsByLead, useReps } from './leads/shared';
 import { HandoverDrawer, SaleOutcomeModal, SimDialModal } from './leads/Handover';
 
@@ -40,7 +40,7 @@ export default function Workspace() {
   const mine = useMemo(() => app.leads.filter((l) => l.assignedRepId === repId && !l.archived), [app.leads, repId]);
   const active = mine.filter((l) => !['Converted', 'Not interested', 'Do not call'].includes(l.status));
   const newWarm = mine.filter((l) => l.status === 'Warm' && l.lastCallAt && NOW.getTime() - +new Date(l.lastCallAt) < 7 * DAY);
-  const priority = mine.filter((l) => l.status !== 'Converted' && (l.status === 'Hot' || l.score >= HOT));
+  const priority = mine.filter(isPriority);
   const converted = mine.filter((l) => l.status === 'Converted');
   const myTasks = useMemo(() => app.tasks.filter((t) => t.repId === repId), [app.tasks, repId]);
   const overdue = myTasks.filter((t) => !t.done && new Date(t.due) < NOW).sort((a, b) => +new Date(a.due) - +new Date(b.due));

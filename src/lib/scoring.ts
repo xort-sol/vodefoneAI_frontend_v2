@@ -22,6 +22,11 @@ export const CRITERIA = [
   { key: 'next_step', label: 'Next step agreed', max: 10 },
 ] as const;
 
+/** Statuses a score must never override: the customer said no, opted out, or already bought. */
+export const CLOSED_STATUSES = ['Converted', 'Not interested', 'Do not call'];
+export const isPriority = (l: { status: string; score: number }) =>
+  !CLOSED_STATUSES.includes(l.status) && (l.status === 'Hot' || l.score >= HOT);
+
 /** A matrix breakdown, as opposed to the old need/budget/timeline/authority one older calls stored. */
 export const isMatrix = (q: Record<string, number> | undefined): q is Record<string, number> =>
   !!q && CRITERIA.some((c) => c.key in q);

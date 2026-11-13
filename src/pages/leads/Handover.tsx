@@ -88,24 +88,26 @@ const FACT_GROUPS: [string, [string, string][]][] = [
     ['desired_improvement', 'Desired improvement'], ['timeline', 'Timeline']]],
 ];
 const day = (iso: string) => fmtDate(`${iso}T00:00`); // a bare date is local, not UTC midnight
+// the agent stores "unknown" when the customer doesn't know; anything else not a date is dropped
+const contractEnd = (v?: string) => (v === 'unknown' ? 'Unknown' : v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? day(v) : undefined);
 type Amount = { exact?: number; min?: number; max?: number | null; vat?: string; date?: string; months?: number; type?: string };
 const amount = (v: Amount) => (v.exact != null ? fmtInt(v.exact) : v.max == null ? `${fmtInt(v.min ?? 0)}+` : `${fmtInt(v.min ?? 0)}–${fmtInt(v.max)}`);
 function factText(name: string, value: unknown): string {
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   if (!value || typeof value !== 'object') return String(value);
   const v = value as Amount;
-  if (v.date || v.months != null) return [v.date ? `Ends ${day(v.date)}` : `${v.months} months left`, v.type].filter(Boolean).join(' · ');
+  if (v.date || v.months != null) return [v.date ? `Ends ${day(v.date)}` : `${v.months} month${v.months === 1 ? '' : 's'} left`, v.type].filter(Boolean).join(' · ');
   if (name.endsWith('_spend')) return `€${amount(v)}/month${v.vat ? ` ${v.vat}. VAT` : ''}`;
   return amount(v);
 }
 
 function NextStep({ call }: { call: Call }) {
   const f = call.followUp ?? {};
-  if (call.outcome === 'Transferred to human' || f.transfer === 'done') return <Section icon={<ClipboardList size={12} />} title="Next step"><div className="small">Transferred to a specialist during the call.</div></Section>;
+  if (f.transfer === 'done' || (call.outcome === 'Transferred to human' && !call.simulated)) return <Section icon={<ClipboardList size={12} />} title="Next step"><div className="small">Transferred to a specialist during the call.</div></Section>;
   const rows: [string, string | undefined][] = f.reason === 'field_visit'
     ? [['Address', f.visit_address], ['Contact', f.contact_name], ['Attendees', f.attendees], ['Products', f.products], ['Time', call.callbackTime]]
     : f.reason === 'email' ? [['Email', f.email], ['Products', f.products]]
-      : f.reason || call.callbackTime ? [['When', call.callbackTime], ['Reason', f.reason === 'renewal' ? 'Renewal' : 'Callback'], ['Contract ends', f.contract_end && day(f.contract_end)]]
+      : f.reason || call.callbackTime ? [['When', call.callbackTime], ['Reason', f.reason === 'renewal' ? 'Renewal' : 'Callback'], ['Contract ends', contractEnd(f.contract_end)]]
         : [];
   if (!rows.length) return null;
   const label = f.reason === 'field_visit' ? 'Field visit' : f.reason === 'email' ? 'Email' : f.transfer === 'failed' ? 'Transfer attempted, then callback booked' : 'Callback';

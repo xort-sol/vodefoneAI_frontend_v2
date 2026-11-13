@@ -45,6 +45,7 @@ export function hashFrac(s: string) { return (hash(s) % 10000) / 10000; }
 export type QualStatus = 'Qualified' | 'Warm' | 'Nurture' | 'Not qualified';
 export function qualStatus(c: Call): QualStatus {
   if (c.outcome === 'Qualified' || c.outcome === 'Transferred to human') return 'Qualified';
+  if (c.outcome === 'Not interested' || c.outcome === 'Opted out') return 'Not qualified'; // a high score never warms a refusal
   if (c.classification) return STORED[c.classification];
   if (c.score >= WARM) return 'Warm';
   if (c.score >= DEVELOPING) return 'Nurture';

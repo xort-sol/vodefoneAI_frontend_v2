@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CRITERIA, CLASS_LABEL, HOT, WARM, DEVELOPING, classify } from './scoring';
+import { CRITERIA, CLASS_LABEL, HOT, WARM, DEVELOPING, classify, isPriority } from './scoring';
 
 describe('classify', () => {
   it.each([
@@ -7,6 +7,13 @@ describe('classify', () => {
   ] as const)('%i -> %s', (score, want) => expect(classify(score)).toBe(want));
   it('thresholds match the backend matrix', () => expect([HOT, WARM, DEVELOPING]).toEqual([80, 60, 40]));
   it('labels every class', () => expect(CLASS_LABEL).toEqual({ hot: 'Hot', warm: 'Warm', developing: 'Developing', low: 'Low' }));
+});
+
+describe('isPriority', () => {
+  it.each([
+    ['Hot', 10, true], ['Warm', 80, true], ['Warm', 79, false],
+    ['Do not call', 95, false], ['Not interested', 95, false], ['Converted', 95, false],
+  ] as const)('%s at %i -> %s', (status, score, want) => expect(isPriority({ status, score })).toBe(want));
 });
 
 describe('criteria', () => {

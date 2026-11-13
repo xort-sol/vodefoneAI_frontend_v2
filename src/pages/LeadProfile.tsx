@@ -197,7 +197,7 @@ export default function LeadProfile() {
                     <div className="col gap-4 small">
                       <div className="row">Sentiment <StatusBadge status={lead.sentiment} dot={false} /></div>
                       <div className="row">Category <StatusBadge status={lead.status} /></div>
-                      <div className="muted">{lead.score >= app.settings.hotThreshold ? `Above hot threshold (${app.settings.hotThreshold})` : lead.score >= app.settings.warmThreshold ? `Above warm threshold (${app.settings.warmThreshold})` : 'Below warm threshold'}</div>
+                      {!['Not interested', 'Do not call'].includes(lead.status) && <div className="muted">{lead.score >= app.settings.hotThreshold ? `Above hot threshold (${app.settings.hotThreshold})` : lead.score >= app.settings.warmThreshold ? `Above warm threshold (${app.settings.warmThreshold})` : 'Below warm threshold'}</div>}
                     </div>
                   </div>
                 </Card>

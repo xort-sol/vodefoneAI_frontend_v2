@@ -6,6 +6,7 @@ import { Badge, Button, Card, DataTable, FilterSelect, Menu, MenuItem, PageHeade
 import type { Lead, TeamMember } from '../data/types';
 import { DAY, NOW } from '../data/seed';
 import { fmtInt, fmtRelative } from '../lib/format';
+import { HOT } from '../lib/scoring';
 import { QUALIFIED_STATUSES } from '../lib/metrics';
 import { ENGAGED, PageFix, RepCell, useCallsByLead, useReps } from './leads/shared';
 import { HandoverDrawer } from './leads/Handover';
@@ -37,7 +38,7 @@ function plan(method: Method, leads: Lead[], reps: TeamMember[], load: Map<strin
     if (method === 'Round-robin') take(lead, rr());
     else if (method === 'Product-based') { const spec = reps.filter((r) => r.products.includes(lead.productInterest)); take(lead, least(spec.length ? spec : reps) ?? least(reps)); }
     else if (method === 'Team-based') { const team = lead.customerType === 'Consumer' ? (lead.tags.includes('Retention risk') ? 'Retention' : 'Consumer Sales') : 'Business Sales'; const c = reps.filter((r) => r.team === team); take(lead, least(c) ?? least(reps)); }
-    else if (method === 'Priority-based') take(lead, lead.score >= 80 || lead.status === 'Hot' ? least(top) ?? least(reps) : rr());
+    else if (method === 'Priority-based') take(lead, lead.score >= HOT || lead.status === 'Hot' ? least(top) ?? least(reps) : rr());
   }
   return { out, skipped };
 }

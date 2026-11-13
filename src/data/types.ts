@@ -1,3 +1,5 @@
+import type { Classification } from '../lib/scoring';
+
 // Shared domain model. Shapes mirror what a future backend (CRM / telephony / voice AI) would return.
 
 export type LeadStatus =
@@ -120,10 +122,19 @@ export interface Call {
   questions: string[];
   unanswered: string[];
   failureReason?: string;
-  qualification?: { need: number; budget: number; timeline: number; authority: number }; // 0-25 each, real calls only
+  // Live only: the 11 matrix criteria in points, or on older calls need/budget/timeline/authority out of 25
+  qualification?: Record<string, number>;
   simulated: boolean;
   // Live only, from the call and its analysis
   reason?: string; nextStep?: string; interestedServices?: string; callbackTime?: string;
+  discovery?: Record<string, Fact>; classification?: Classification; followUp?: FollowUp;
+}
+
+/** One discovery fact as the backend stores it; `value` is set only when known. */
+export interface Fact { status: 'known' | 'unknown' | 'declined' | 'n/a'; value: unknown }
+export interface FollowUp {
+  reason?: 'callback' | 'renewal' | 'field_visit' | 'email'; contract_end?: string; visit_address?: string; contact_name?: string;
+  attendees?: string; email?: string; products?: string; transfer?: 'done' | 'failed';
 }
 
 export interface Product {

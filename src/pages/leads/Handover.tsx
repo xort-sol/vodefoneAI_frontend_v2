@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  AlertTriangle, BadgeCheck, CalendarPlus, ChevronDown, ChevronRight, CircleCheck, ExternalLink, HelpCircle, Lightbulb, MessageSquareWarning,
+  AlertTriangle, BadgeCheck, CalendarPlus, ChevronDown, ChevronRight, CircleCheck, ClipboardList, ExternalLink, Gauge, HelpCircle, Lightbulb, MessageSquareWarning,
   Phone, PhoneOff, PoundSterling, ShieldAlert, StickyNote, Target, UserCheck, XCircle,
 } from 'lucide-react';
 import { useApp } from '../../store/store';
@@ -11,7 +11,8 @@ import {
 } from '../../components/ui';
 import type { Call, Lead, LeadStatus, Product } from '../../data/types';
 import { DAY, NOW } from '../../data/seed';
-import { fmtDateTime, fmtDur, fmtEUR, fmtRelative } from '../../lib/format';
+import { fmtDate, fmtDateTime, fmtDur, fmtEUR, fmtInt, fmtRelative } from '../../lib/format';
+import { CLASS_LABEL, CRITERIA, classify, isMatrix } from '../../lib/scoring';
 import { LEAD_STATUSES, ScheduleModal, uniq, useReps } from './shared';
 
 /* ---------------- insights derived from call data ---------------- */
@@ -72,6 +73,75 @@ function Section({ icon, title, children }: { icon: ReactNode; title: string; ch
 function Bullets({ items, empty }: { items: string[]; empty: string }) {
   if (!items.length) return <div className="small muted">{empty}</div>;
   return <ul style={{ margin: 0, paddingLeft: 18 }} className="small col gap-4">{items.map((i) => <li key={i} style={{ color: 'var(--graphite)' }}>{i}</li>)}</ul>;
+}
+
+/* ---------------- What the AI call captured (Live) ---------------- */
+const FACT_GROUPS: [string, [string, string][]][] = [
+  ['Business', [['business_type', 'Business type'], ['employees', 'Employees'], ['premises', 'Premises'], ['workforce', 'Workforce'],
+    ['decision_maker', 'Decision maker'], ['other_decision_makers', 'Other decision makers']]],
+  ['Broadband', [['bb_provider', 'Provider'], ['bb_package', 'Package'], ['bb_speed', 'Speed'], ['bb_spend', 'Spend'], ['bb_contract', 'Contract'],
+    ['bb_issues', 'Issues'], ['bb_peak_issues', 'Issues at peak times'], ['bb_needs', 'Needs'], ['devices', 'Connected devices']]],
+  ['Mobile', [['mob_network', 'Network'], ['mob_connections', 'Connections'], ['mob_spend', 'Spend'], ['mob_contract', 'Contract'],
+    ['mob_coverage', 'Coverage problems'], ['mob_data_roaming', 'Data and roaming'], ['mob_handsets', 'Handsets']]],
+  ['Other services', [['m365', 'Microsoft 365 need'], ['voice', 'Phone system need'], ['other_suppliers', 'Other suppliers']]],
+  ['Commercial', [['considering_change', 'Considering a change'], ['pain_point', 'Pain point'], ['impact', 'Impact'],
+    ['desired_improvement', 'Desired improvement'], ['timeline', 'Timeline']]],
+];
+const day = (iso: string) => fmtDate(`${iso}T00:00`); // a bare date is local, not UTC midnight
+type Amount = { exact?: number; min?: number; max?: number | null; vat?: string; date?: string; months?: number; type?: string };
+const amount = (v: Amount) => (v.exact != null ? fmtInt(v.exact) : v.max == null ? `${fmtInt(v.min ?? 0)}+` : `${fmtInt(v.min ?? 0)}–${fmtInt(v.max)}`);
+function factText(name: string, value: unknown): string {
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (!value || typeof value !== 'object') return String(value);
+  const v = value as Amount;
+  if (v.date || v.months != null) return [v.date ? `Ends ${day(v.date)}` : `${v.months} months left`, v.type].filter(Boolean).join(' · ');
+  if (name.endsWith('_spend')) return `€${amount(v)}/month${v.vat ? ` ${v.vat}. VAT` : ''}`;
+  return amount(v);
+}
+
+function NextStep({ call }: { call: Call }) {
+  const f = call.followUp ?? {};
+  if (call.outcome === 'Transferred to human' || f.transfer === 'done') return <Section icon={<ClipboardList size={12} />} title="Next step"><div className="small">Transferred to a specialist during the call.</div></Section>;
+  const rows: [string, string | undefined][] = f.reason === 'field_visit'
+    ? [['Address', f.visit_address], ['Contact', f.contact_name], ['Attendees', f.attendees], ['Products', f.products], ['Time', call.callbackTime]]
+    : f.reason === 'email' ? [['Email', f.email], ['Products', f.products]]
+      : f.reason || call.callbackTime ? [['When', call.callbackTime], ['Reason', f.reason === 'renewal' ? 'Renewal' : 'Callback'], ['Contract ends', f.contract_end && day(f.contract_end)]]
+        : [];
+  if (!rows.length) return null;
+  const label = f.reason === 'field_visit' ? 'Field visit' : f.reason === 'email' ? 'Email' : f.transfer === 'failed' ? 'Transfer attempted, then callback booked' : 'Callback';
+  const badge = f.reason === 'field_visit' ? 'Request — awaiting team confirmation' : f.reason === 'email' ? 'Not sent yet' : null;
+  return (
+    <Section icon={<ClipboardList size={12} />} title="Next step">
+      <div className="row-wrap small medium" style={{ marginBottom: 8 }}>{label}{badge && <Badge tone="amber">{badge}</Badge>}</div>
+      <KV items={rows.filter(([, v]) => v).map(([k, v]) => [k, v])} />
+    </Section>
+  );
+}
+
+/** The facts, agreed next step and matrix points a Live call stored; renders nothing for calls without them. */
+export function CallFindings({ call }: { call: Call }) {
+  const d = call.discovery ?? {};
+  const groups = FACT_GROUPS.map(([g, facts]) => [g, facts.flatMap(([name, label]): [string, string][] => {
+    const f = d[name];
+    return f?.status === 'known' ? [[label, factText(name, f.value)]] : f?.status === 'declined' ? [[label, 'Declined to say']] : [];
+  })] as const).filter(([, rows]) => rows.length);
+  const q = call.qualification;
+  return (
+    <>
+      {groups.length > 0 && (
+        <Section icon={<Lightbulb size={12} />} title="What we learned">
+          {groups.map(([g, rows]) => <div key={g} style={{ marginBottom: 10 }}><div className="small medium" style={{ marginBottom: 4 }}>{g}</div><KV items={rows} /></div>)}
+        </Section>
+      )}
+      <NextStep call={call} />
+      {isMatrix(q) && (
+        <Section icon={<Gauge size={12} />} title="Score">
+          <div className="row-wrap" style={{ marginBottom: 8 }}><span className="mono strong">{call.score}/100</span><StatusBadge status={CLASS_LABEL[call.classification ?? classify(call.score)]} dot={false} /></div>
+          <KV items={CRITERIA.map((c) => [c.label, <span key={c.key} className="mono">{q[c.key] ?? 0}/{c.max}</span>])} />
+        </Section>
+      )}
+    </>
+  );
 }
 
 /* ---------------- Handover drawer ---------------- */
@@ -194,6 +264,7 @@ export function HandoverDrawer({ lead, calls, onClose, actingRepId, onContact, o
           <div className="mt-8" style={{ color: 'var(--graphite)', lineHeight: 1.55 }}>{lead.aiSummary || 'No AI conversation yet.'}</div>
         </div>
 
+        {ins.latestConnected && <CallFindings call={ins.latestConnected} />}
         <Section icon={<Lightbulb size={12} />} title="Reason for interest"><div className="small" style={{ color: 'var(--graphite)' }}>{ins.reason}</div></Section>
         <div className="grid g-2" style={{ gap: 16 }}>
           <Section icon={<CircleCheck size={12} />} title="Customer requirements"><Bullets items={ins.requirements} empty="None captured." /></Section>

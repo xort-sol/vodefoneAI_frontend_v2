@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts';
 import { fmtDur } from '../lib/format';
+import { classify } from '../lib/scoring';
 import { getMode } from '../live/client';
 import type { TranscriptLine } from '../data/types';
 
@@ -82,8 +83,9 @@ export function Avatar({ name, initials, size, color, agent }: { name?: string; 
   return <span className={`avatar ${size ?? ''} ${agent ? 'agent' : ''}`} style={style} title={name}>{ini}</span>;
 }
 
+const SCORE_COLOR = { hot: 'var(--tangerine)', warm: 'var(--green)', developing: 'var(--blue)', low: 'var(--silver)' };
 export function ScoreBar({ value, showValue = true }: { value: number; showValue?: boolean }) {
-  const color = value >= 85 ? 'var(--tangerine)' : value >= 60 ? 'var(--green)' : value >= 35 ? 'var(--blue)' : 'var(--silver)';
+  const color = SCORE_COLOR[classify(value)];
   return (
     <span className="score">
       <span className="score-track"><span className="score-fill" style={{ width: `${value}%`, background: color, display: 'block' }} /></span>

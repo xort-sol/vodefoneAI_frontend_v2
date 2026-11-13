@@ -29,7 +29,7 @@ describe('toRole', () => {
 describe('toLeadStatus', () => {
   it.each([
     ['new', 10, 'New'], ['dialling', 10, 'Contacted'], ['retry', 10, 'Contacted'], ['callback', 10, 'Callback requested'],
-    ['interested', 85, 'Hot'], ['interested', 84, 'Warm'], ['closed', 10, 'Not interested'],
+    ['interested', 80, 'Hot'], ['interested', 79, 'Warm'], ['closed', 10, 'Not interested'],
     ['exhausted', 10, 'Unreachable'], ['do_not_call', 10, 'Do not call'],
   ])('%s at score %i -> %s', (status, score, want) => expect(toLeadStatus({ status, sales_status: null, score })).toBe(want));
   it('a salesperson decision wins over dialler state', () =>
@@ -67,7 +67,8 @@ describe('toCall', () => {
   const base = { id: 3, lead_id: 9, campaign_id: 4, created_at: '2026-01-02T10:00:00Z', duration_s: 120, notes: null, analyses: null };
   const camp = { product_ref: 'p-x', agent_ref: 'ag-9' };
   it.each([
-    ['interested', 85, 'Qualified'], ['interested', 84, 'Interested'], ['callback', 0, 'Callback requested'],
+    ['interested', 80, 'Qualified'], ['interested', 79, 'Interested'], ['transferred', 0, 'Transferred to human'],
+    ['field_visit', 0, 'Qualified'], ['email_request', 0, 'Interested'], ['callback', 0, 'Callback requested'],
     ['not_interested', 0, 'Not interested'], ['do_not_call', 0, 'Opted out'], ['no_answer', 0, 'No answer'],
     ['voicemail', 0, 'Voicemail'], ['no_response', 0, 'No answer'], ['unreachable', 0, 'Failed'], ['hung_up', 0, 'Not interested'],
   ])('%s at score %i -> %s', (outcome, score, want) =>
@@ -88,6 +89,23 @@ describe('toCall', () => {
     expect(toCall({ ...base, outcome: 'interested', analyses: { score: 50, qualification: q } }, camp).qualification).toEqual(q);
     expect(toCall({ ...base, outcome: 'interested' }, camp).qualification).toBeUndefined();
   });
+  it('the stored classification wins over the score', () => {
+    expect(toCall({ ...base, outcome: 'interested', analyses: { score: 90, classification: 'warm' } }, camp)).toMatchObject({ outcome: 'Interested', classification: 'warm' });
+    expect(toCall({ ...base, outcome: 'interested', analyses: { score: 10, classification: 'hot' } }, camp).outcome).toBe('Qualified');
+    expect(toCall({ ...base, outcome: 'interested', analyses: { score: 90 } }, camp).classification).toBeUndefined();
+  });
+  it('carries discovery facts, matrix points and follow-up as stored', () => {
+    const discovery = { bb_provider: { status: 'known', value: 'Eir' }, bb_spend: { status: 'declined', value: null } };
+    const qualification = { decision_maker: 10, employees_5: 0 };
+    const follow_up = { reason: 'field_visit', visit_address: '1 Main St, Cork', transfer: 'failed' };
+    const c = toCall({ ...base, outcome: 'field_visit', follow_up, analyses: { score: 10, discovery, qualification } }, camp);
+    expect(c).toMatchObject({ discovery, qualification, followUp: follow_up });
+    const bare = toCall({ ...base, outcome: 'hung_up' }, camp);
+    expect([bare.discovery, bare.followUp]).toEqual([undefined, undefined]);
+  });
+  it.each([['field_visit', 'Field visit requested'], ['email_request', 'Email requested']])('%s next step is %s', (outcome, want) =>
+    expect(toCall({ ...base, outcome, analyses: { next_step: 'Something vague' } }, camp).nextStep).toBe(want));
+  it.each(['transferred', 'field_visit', 'email_request'])('%s is connected', (outcome) => expect(toCall({ ...base, outcome }, camp).connected).toBe(true));
 });
 
 describe('text helpers', () => {

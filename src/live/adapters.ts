@@ -1,6 +1,7 @@
 // Pure database-row to screen-model adapters for Live mode. No Supabase calls here.
 import type { Call, CallOutcome, Campaign, Lead, LeadStatus, Role, Suppression, TeamMember, TranscriptLine } from '../data/types';
 import { products, initialsOf } from '../data/seed';
+import { classify } from '../lib/scoring';
 
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -20,7 +21,7 @@ const LEAD_STATUS: Record<string, LeadStatus> = {
 };
 export function toLeadStatus(row: Row): LeadStatus {
   if (row.sales_status) return row.sales_status as LeadStatus;
-  if (row.status === 'interested') return (row.score ?? 0) >= 85 ? 'Hot' : 'Warm';
+  if (row.status === 'interested') return classify(row.score ?? 0) === 'hot' ? 'Hot' : 'Warm';
   return LEAD_STATUS[row.status] ?? 'New';
 }
 // Queueing never touches sales_status: clearing it would hand a lead a rep holds back to the dialler
@@ -104,7 +105,9 @@ export function toCampaign(
 const OUTCOME: Record<string, CallOutcome> = {
   callback: 'Callback requested', not_interested: 'Not interested', do_not_call: 'Opted out', no_answer: 'No answer',
   voicemail: 'Voicemail', no_response: 'No answer', unreachable: 'Failed', hung_up: 'Not interested',
+  transferred: 'Transferred to human', field_visit: 'Qualified', email_request: 'Interested',
 };
+const AGREED_STEP: Record<string, string> = { field_visit: 'Field visit requested', email_request: 'Email requested' };
 const NOT_CONNECTED = ['no_answer', 'voicemail', 'unreachable', 'no_response'];
 
 /** `row.analyses` is the joined analysis (or null); `campaign` supplies the agent and product refs. */
@@ -112,7 +115,8 @@ export function toCall(row: Row, campaign?: { agent_ref?: string | null; product
   const a: Row = (Array.isArray(row.analyses) ? row.analyses[0] : row.analyses) ?? {};
   const score: number = a.score ?? 0;
   const duration: number = row.duration_s ?? 0;
-  const outcome: CallOutcome = row.outcome === 'interested' ? (score >= 85 ? 'Qualified' : 'Interested') : OUTCOME[row.outcome] ?? 'Failed';
+  const hot = (a.classification ?? classify(score)) === 'hot'; // older analyses have no stored classification
+  const outcome: CallOutcome = row.outcome === 'interested' ? (hot ? 'Qualified' : 'Interested') : OUTCOME[row.outcome] ?? 'Failed';
   return {
     id: String(row.id), leadId: String(row.lead_id), campaignId: String(row.campaign_id),
     agentId: campaign?.agent_ref ?? '', productId: campaign?.product_ref ?? products[0].id,
@@ -121,8 +125,9 @@ export function toCall(row: Row, campaign?: { agent_ref?: string | null; product
     intent: score, score, cost: (duration / 60) * COST_PER_MINUTE, recording: 'Not recorded',
     summary: a.brief ?? row.notes ?? '', objections: a.objections ?? [], questions: a.questions ?? [], unanswered: a.unanswered ?? [],
     ...(a.qualification ? { qualification: a.qualification } : {}),
-    reason: a.reason || undefined, nextStep: a.next_step || undefined,
+    reason: a.reason || undefined, nextStep: AGREED_STEP[row.outcome] ?? (a.next_step || undefined),
     interestedServices: row.interested_services || undefined, callbackTime: row.callback_time || undefined,
+    discovery: a.discovery ?? undefined, classification: a.classification ?? undefined, followUp: row.follow_up ?? undefined,
     simulated: false,
   };
 }

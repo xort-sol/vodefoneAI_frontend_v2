@@ -12,6 +12,7 @@ import {
 import type { Lead, LeadStatus } from '../data/types';
 import { DAY, NOW, startOfDay } from '../data/seed';
 import { fmtDateShort, fmtDateTime, fmtEUR, fmtInt, fmtPct, fmtRelative, fmtTime } from '../lib/format';
+import { HOT } from '../lib/scoring';
 import { PageFix, ScheduleModal, isToday, useCallsByLead, useReps } from './leads/shared';
 import { HandoverDrawer, SaleOutcomeModal, SimDialModal } from './leads/Handover';
 
@@ -39,7 +40,7 @@ export default function Workspace() {
   const mine = useMemo(() => app.leads.filter((l) => l.assignedRepId === repId && !l.archived), [app.leads, repId]);
   const active = mine.filter((l) => !['Converted', 'Not interested', 'Do not call'].includes(l.status));
   const newWarm = mine.filter((l) => l.status === 'Warm' && l.lastCallAt && NOW.getTime() - +new Date(l.lastCallAt) < 7 * DAY);
-  const priority = mine.filter((l) => l.status !== 'Converted' && (l.status === 'Hot' || l.score >= 85));
+  const priority = mine.filter((l) => l.status !== 'Converted' && (l.status === 'Hot' || l.score >= HOT));
   const converted = mine.filter((l) => l.status === 'Converted');
   const myTasks = useMemo(() => app.tasks.filter((t) => t.repId === repId), [app.tasks, repId]);
   const overdue = myTasks.filter((t) => !t.done && new Date(t.due) < NOW).sort((a, b) => +new Date(a.due) - +new Date(b.due));
@@ -164,7 +165,7 @@ export default function Workspace() {
           <div className="grid g-4 keep-2" style={{ marginBottom: 16 }}>
             <KpiCard label="Assigned leads" icon={<Briefcase size={13} />} value={fmtInt(active.length)} prevLabel={`${mine.length} total incl. closed`} onClick={() => setTab('assigned')} />
             <KpiCard label="New warm leads" icon={<Sparkles size={13} />} value={fmtInt(newWarm.length)} prevLabel="qualified in last 7 days" onClick={() => setTab('warm')} />
-            <KpiCard label="Priority leads" icon={<Flame size={13} />} value={fmtInt(priority.length)} prevLabel="hot or score ≥ 85" onClick={() => setTab('priority')} />
+            <KpiCard label="Priority leads" icon={<Flame size={13} />} value={fmtInt(priority.length)} prevLabel={`hot or score ≥ ${HOT}`} onClick={() => setTab('priority')} />
             <KpiCard label="Today’s follow-ups" icon={<Clock size={13} />} value={fmtInt(todayCount)} prevLabel={`${todayAppts.length} appointments · ${todayTasks.filter((t) => !t.done).length} tasks`} onClick={() => setTab('followups')} />
             <KpiCard label="Upcoming appointments" icon={<CalendarClock size={13} />} value={fmtInt(upcoming.length)} prevLabel={upcoming[0] ? `next ${fmtRelative(upcoming[0].start)}` : 'none booked'} onClick={() => setTab('appointments')} />
             <KpiCard label="Overdue tasks" icon={<AlertTriangle size={13} />} value={<span className={overdue.length ? 'red' : ''}>{fmtInt(overdue.length)}</span>} prevLabel={overdue[0] ? `oldest ${fmtRelative(overdue[0].due)}` : 'all on track'} onClick={() => setTab('overdue')} />
@@ -193,7 +194,7 @@ export default function Workspace() {
             </Card>
           </div>
           <div className="grid g-2">
-            <Card flush title="Priority queue" sub="Hot leads and scores ≥ 85" actions={<Button size="xs" variant="ghost" iconRight={<ArrowRight size={12} />} onClick={() => setTab('priority')}>View all</Button>}>
+            <Card flush title="Priority queue" sub={`Hot leads and scores ≥ ${HOT}`} actions={<Button size="xs" variant="ghost" iconRight={<ArrowRight size={12} />} onClick={() => setTab('priority')}>View all</Button>}>
               <div className="list" style={{ padding: '0 16px 8px' }}>
                 {[...priority].sort((a, b) => b.score - a.score).slice(0, 6).map((l) => (
                   <div key={l.id} className="list-item clickable" onClick={() => setOpenId(l.id)}>

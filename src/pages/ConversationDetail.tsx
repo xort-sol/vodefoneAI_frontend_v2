@@ -12,6 +12,7 @@ import {
 import { downloadFile, fmtDate, fmtDateTime, fmtDur, fmtDurLong, fmtEUR, fmtRelative, fmtTime } from '../lib/format';
 import { NOW, DAY } from '../data/seed';
 import type { Call, Lead, TranscriptLine } from '../data/types';
+import { HOT } from '../lib/scoring';
 import { getNavList, PRESET_TAGS, QUAL_TONE, qualBreakdown, qualStatus, TAG_TONE, useAnnotation } from './conversations/state';
 
 const LAYOUT_CSS = `
@@ -441,9 +442,9 @@ function Insights({ call, lines, onSeek }: { call: Call; lines: TranscriptLine[]
         <div className="col mt-12" style={{ gap: 10 }}>
           {breakdown.map((b) => (
             <div key={b.key}>
-              <div className="row between small"><span className="medium" style={{ color: 'var(--ink)' }}>{b.key}</span><span className="mono">{b.value}/25</span></div>
-              <div className="progress mt-4" style={{ height: 4 }}><div style={{ width: `${(b.value / 25) * 100}%`, background: b.value >= 18 ? CHART.green : b.value >= 10 ? CHART.blue : CHART.grey }} /></div>
-              <div className="xs muted mt-4">{b.hint}</div>
+              <div className="row between small"><span className="medium" style={{ color: 'var(--ink)' }}>{b.key}</span><span className="mono">{b.value}/{b.max}</span></div>
+              <div className="progress mt-4" style={{ height: 4 }}><div style={{ width: `${(b.value / b.max) * 100}%`, background: b.value / b.max >= 0.72 ? CHART.green : b.value / b.max >= 0.4 ? CHART.blue : CHART.grey }} /></div>
+              {b.hint && <div className="xs muted mt-4">{b.hint}</div>}
             </div>
           ))}
         </div>
@@ -544,7 +545,7 @@ function EscalateModal({ call, lead, onClose, onDone }: { call: Call; lead: Lead
   const reps = app.team.filter((t) => t.role === 'Sales Representative');
   const suggested = reps.find((r) => r.products.includes(call.productId) && r.status === 'Available') ?? reps[0];
   const [repId, setRepId] = useState(lead.assignedRepId ?? suggested?.id ?? '');
-  const [priority, setPriority] = useState<'High' | 'Medium' | 'Low'>(call.score >= 80 ? 'High' : 'Medium');
+  const [priority, setPriority] = useState<'High' | 'Medium' | 'Low'>(call.score >= HOT ? 'High' : 'Medium');
   const [note, setNote] = useState(`Please follow up on ${call.id}. ${call.summary}`);
   const [err, setErr] = useState('');
 

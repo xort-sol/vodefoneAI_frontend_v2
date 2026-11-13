@@ -3,6 +3,7 @@
 // so other pages keep working unchanged. Backend integration point: agent config API.
 import type { Agent, Offer, Product } from '../../data/types';
 import { NOW, DAY } from '../../data/seed';
+import { HOT, WARM } from '../../lib/scoring';
 
 export const AGENT_COLORS = ['#2563EB', '#1E40AF', '#16A34A', '#7C3AED', '#EA580C', '#0A0A0A', '#525252', '#A3A3A3'];
 export const VOICES = [
@@ -123,7 +124,7 @@ export function defaultBuilder(a: AgentX, products: Product[]): Builder {
     ],
     kbExcluded: [],
     criteria: DEFAULT_CRITERIA.map((c) => ({ ...c, enabled: c.key === 'authority' ? true : c.enabled })),
-    hotThreshold: 85, warmThreshold: 60, minScore: biz ? 75 : 65,
+    hotThreshold: HOT, warmThreshold: WARM, minScore: biz ? 75 : 65,
     ending: { optOut: 'End call immediately', suppress: true, voicemail: 'Hang up', voicemailMessage: 'Hi, this is {agent_name} calling from Vodafone about an offer for your account. No action is needed — we will try again another time.', maxDurationMin: 12, summary: true, crmWriteBack: true, crmTarget: 'Salesforce' },
     tests: [],
     environment: a.status === 'Live' ? 'Live' : a.status === 'Testing' ? 'Testing' : 'Draft', trafficSplit: 100,

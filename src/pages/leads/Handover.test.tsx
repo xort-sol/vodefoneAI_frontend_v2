@@ -1,0 +1,65 @@
+// @vitest-environment jsdom
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../../live/client', () => ({ getMode: () => 'live', supabase: {} }));
+
+import { CallFindings } from './Handover';
+import type { Call } from '../../data/types';
+
+afterEach(cleanup);
+const call = (o: Record<string, unknown>) => ({ id: 'c1', outcome: 'Interested', score: 0, connected: true, ...o }) as Call;
+const show = (o: Record<string, unknown>) => { render(<CallFindings call={call(o)} />); return document.body.textContent ?? ''; };
+const known = (value: unknown) => ({ status: 'known', value });
+
+describe('What we learned', () => {
+  it('shows known facts in their groups, "Declined to say" for declined, and hides unknown and n/a', () => {
+    const text = show({ discovery: {
+      business_type: known('Café'), employees: known({ min: 5, max: 10 }), decision_maker: known(true),
+      bb_provider: known('Eir'), bb_spend: known({ exact: 60, vat: 'incl' }), bb_contract: known({ date: '2027-03-01', type: 'fixed' }),
+      mob_spend: { status: 'declined', value: null }, mob_network: { status: 'unknown', value: null }, m365: { status: 'n/a', value: null },
+      mob_connections: known({ min: 50, max: null }),
+    } });
+    for (const s of ['Business', 'Broadband', 'Mobile', 'Café', '5–10', 'Eir', '€60/month incl. VAT', 'fixed', 'Declined to say', '50+']) expect(text).toContain(s);
+    expect(screen.getByText('Decision maker').nextSibling?.textContent).toBe('Yes');
+    expect(text).not.toContain('Network');
+    expect(text).not.toContain('Microsoft 365');
+    expect(text).not.toContain('Other services');
+  });
+  it('shows nothing for a call with no facts', () => expect(show({})).toBe(''));
+});
+
+describe('Next step', () => {
+  it('callback shows time, reason and renewal date', () => {
+    const text = show({ outcome: 'Callback requested', callbackTime: 'Tuesday at 3pm', followUp: { reason: 'renewal', contract_end: '2027-01-31' } });
+    expect(text).toContain('Tuesday at 3pm');
+    expect(text).toMatch(/renewal/i);
+    expect(text).toContain('31 Jan 2027');
+  });
+  it('field visit is a request awaiting the team', () => {
+    const text = show({ outcome: 'Qualified', callbackTime: 'Thursday 10am', followUp: { reason: 'field_visit', visit_address: '1 Main St, Cork', contact_name: 'Ann', attendees: 'Ann and Joe', products: 'Broadband' } });
+    for (const s of ['Request — awaiting team confirmation', '1 Main St, Cork', 'Ann and Joe', 'Broadband', 'Thursday 10am']) expect(text).toContain(s);
+  });
+  it('email request is not sent yet', () => {
+    const text = show({ outcome: 'Interested', followUp: { reason: 'email', email: 'ann@cafe.ie', products: 'Mobile' } });
+    for (const s of ['Not sent yet', 'ann@cafe.ie', 'Mobile']) expect(text).toContain(s);
+  });
+  it('transfer done', () => expect(show({ outcome: 'Transferred to human', followUp: { transfer: 'done' } })).toContain('Transferred to a specialist'));
+  it('transfer failed, then a callback', () =>
+    expect(show({ outcome: 'Callback requested', callbackTime: 'Friday 2pm', followUp: { reason: 'callback', transfer: 'failed' } })).toContain('Transfer attempted, then callback booked'));
+});
+
+describe('Score', () => {
+  it('shows total, classification and every criterion with its points', () => {
+    const text = show({ score: 65, classification: 'warm', qualification: { decision_maker: 10, employees_5: 5, bb_spend_50: 0 } });
+    expect(text).toContain('65/100');
+    expect(text).toContain('Warm');
+    expect(screen.getByText('Decision maker').nextSibling?.textContent).toBe('10/10');
+    expect(screen.getByText('Broadband spend €50+').nextSibling?.textContent).toBe('0/10');
+    expect(screen.getByText('Next step agreed').nextSibling?.textContent).toBe('0/10');
+  });
+  it('an old 4-key qualification does not show matrix points', () => {
+    const text = show({ score: 50, qualification: { need: 20, budget: 10, timeline: 5, authority: 15 } });
+    expect(text).not.toContain('Decision maker');
+  });
+});

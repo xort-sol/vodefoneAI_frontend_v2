@@ -5,6 +5,7 @@ import type {
   Agent, Appointment, AuditEntry, Call, CallOutcome, Campaign, ConsentRecord, DeletionRequest,
   Lead, LeadStatus, Notification, Offer, Product, Sentiment, Suppression, Task, TeamMember, TranscriptLine,
 } from './types';
+import { HOT } from '../lib/scoring';
 
 // ---------- seeded RNG ----------
 let _s = 20261105;
@@ -294,7 +295,7 @@ for (const l of leads) {
   l.score = Math.max(...cs.map((c) => c.score));
   l.sentiment = latest.sentiment;
   const map: Record<CallOutcome, LeadStatus> = {
-    Qualified: l.score >= 85 ? 'Hot' : 'Warm', 'Transferred to human': 'Hot', Interested: 'Warm', 'Callback requested': 'Callback requested',
+    Qualified: l.score >= HOT ? 'Hot' : 'Warm', 'Transferred to human': 'Hot', Interested: 'Warm', 'Callback requested': 'Callback requested',
     'Not interested': 'Not interested', 'Opted out': 'Do not call', 'No answer': 'Unreachable', Voicemail: 'Unreachable', Busy: 'Unreachable', Failed: 'Unreachable',
   };
   l.status = map[latest.outcome];

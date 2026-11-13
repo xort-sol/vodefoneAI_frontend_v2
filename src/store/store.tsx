@@ -5,6 +5,7 @@ import type {
   Notification, Offer, Product, Role, Suppression, Task, TeamMember, TranscriptLine,
 } from '../data/types';
 import { getMode } from '../live/client';
+import { HOT, WARM } from '../lib/scoring';
 import { campaignToDb, leadInsertRow, leadToDb, toMember, toRole } from '../live/adapters';
 import { fetchLiveRooms, roomToLiveCall } from '../live/liveCalls';
 import * as repo from '../live/repo';
@@ -62,7 +63,7 @@ const initialSettings: Settings = {
   maxConcurrent: 40, dailyCap: 3000, recordCalls: true,
   disclosure: 'I am an AI assistant calling on behalf of Vodafone.',
   retentionDays: 90, transcriptRetentionDays: 365,
-  assignment: 'Product-based', hotThreshold: 85, warmThreshold: 60,
+  assignment: 'Product-based', hotThreshold: HOT, warmThreshold: WARM,
   notify: {
     'New qualified leads': { inApp: true, email: true }, 'High-priority leads': { inApp: true, email: true },
     'Campaign completion': { inApp: true, email: false }, 'AI agent failures': { inApp: true, email: true },

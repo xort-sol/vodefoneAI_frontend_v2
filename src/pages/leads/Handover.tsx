@@ -102,7 +102,7 @@ function toConfirm(d: Record<string, { status: string; value: unknown }>, live: 
   if (!live) return [];
   return KEY_FACTS.flatMap(([k, label]) => {
     const f = d[k]; const v = f?.value as Amount | undefined;
-    if (f?.status === 'declined') return [];
+    if (f?.status === 'declined' || f?.status === 'n/a') return [];
     if (f?.status !== 'known') return [label];
     return k.endsWith('_contract') && v?.month && v.day ? [`${label} (year to confirm)`] : [];
   });
@@ -148,7 +148,7 @@ export function CallFindings({ call }: { call: Call }) {
   const missing = toConfirm(d, !!call.discovery && !call.simulated);
   return (
     <>
-      {groups.length > 0 && (
+      {(groups.length > 0 || missing.length > 0) && (
         <Section icon={<Lightbulb size={12} />} title="What we learned">
           {groups.map(([g, rows]) => <div key={g} style={{ marginBottom: 10 }}><div className="small medium" style={{ marginBottom: 4 }}>{g}</div><KV items={rows} /></div>)}
           {missing.length > 0 && <div data-testid="still-to-confirm"><div className="small medium" style={{ marginBottom: 4 }}>Still to confirm</div><ul className="small" style={{ margin: 0, paddingLeft: 18 }}>{missing.map((m) => <li key={m}>{m}</li>)}</ul></div>}

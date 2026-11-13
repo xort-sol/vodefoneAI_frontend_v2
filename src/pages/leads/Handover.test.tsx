@@ -67,6 +67,12 @@ describe('Still to confirm', () => {
     show({ discovery: { ...orla, bb_provider: { status: 'declined', value: null } } });
     expect(document.querySelector('[data-testid="still-to-confirm"]')?.textContent).not.toContain('Broadband provider');
   });
+  it('n/a facts are not listed, and a call with nothing learned still shows the list', () => {
+    show({ discovery: { ...orla, bb_provider: { status: 'n/a', value: null } } });
+    expect(document.querySelector('[data-testid="still-to-confirm"]')?.textContent).not.toContain('Broadband provider');
+    cleanup();
+    expect(show({ discovery: {} })).toContain('Still to confirm');
+  });
 });
 
 describe('Next step', () => {

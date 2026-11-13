@@ -92,14 +92,28 @@ const FACT_GROUPS: [string, [string, string][]][] = [
 const day = (iso: string) => fmtDate(`${iso}T00:00`); // a bare date is local, not UTC midnight
 // the agent stores "unknown" when the customer doesn't know; anything else not a date is dropped
 const contractEnd = (v?: string) => (v === 'unknown' ? 'Unknown' : v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? day(v) : undefined);
-type Amount = { exact?: number; min?: number; max?: number | null; vat?: string; date?: string; months?: number; type?: string };
+type Amount = { exact?: number; min?: number; max?: number | null; vat?: string; date?: string; month?: number; day?: number; months?: number; type?: string };
 const amount = (v: Amount) => (v.exact != null ? fmtInt(v.exact) : v.max == null ? `${fmtInt(v.min ?? 0)}+` : `${fmtInt(v.min ?? 0)}–${fmtInt(v.max)}`);
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// facts a rep needs confirmed; contracts also count when only day and month are known
+const KEY_FACTS: [string, string][] = [['bb_provider', 'Broadband provider'], ['bb_spend', 'Broadband spend'], ['bb_contract', 'Broadband contract end'],
+  ['mob_network', 'Mobile network'], ['mob_spend', 'Mobile spend'], ['mob_contract', 'Mobile contract end'], ['employees', 'Employees'], ['decision_maker', 'Decision maker']];
+function toConfirm(d: Record<string, { status: string; value: unknown }>, live: boolean): string[] {
+  if (!live) return [];
+  return KEY_FACTS.flatMap(([k, label]) => {
+    const f = d[k]; const v = f?.value as Amount | undefined;
+    if (f?.status === 'declined') return [];
+    if (f?.status !== 'known') return [label];
+    return k.endsWith('_contract') && v?.month && v.day ? [`${label} (year to confirm)`] : [];
+  });
+}
 function factText(name: string, value: unknown): string {
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   if (!value || typeof value !== 'object') return String(value);
   const v = value as Amount;
   if (v.date || v.months != null) return [v.date ? `Ends ${day(v.date)}` : `${v.months} month${v.months === 1 ? '' : 's'} left`, v.type].filter(Boolean).join(' · ');
-  if (name.endsWith('_spend')) return `€${amount(v)}/month${v.vat ? ` ${v.vat}. VAT` : ''}`;
+  if (v.month && v.day) return `${v.day} ${MONTHS[v.month - 1] ?? ''} (year to confirm)`;
+  if (name.endsWith('_spend')) return `€${amount(v)}/month${v.vat ? ` ${v.vat}. VAT` : ''}${v.exact == null ? ' (estimate)' : ''}`;
   return amount(v);
 }
 
@@ -131,11 +145,13 @@ export function CallFindings({ call }: { call: Call }) {
     return f?.status === 'known' ? [[label, factText(name, f.value)]] : f?.status === 'declined' ? [[label, 'Declined to say']] : [];
   })] as const).filter(([, rows]) => rows.length);
   const q = call.qualification;
+  const missing = toConfirm(d, !!call.discovery && !call.simulated);
   return (
     <>
       {groups.length > 0 && (
         <Section icon={<Lightbulb size={12} />} title="What we learned">
           {groups.map(([g, rows]) => <div key={g} style={{ marginBottom: 10 }}><div className="small medium" style={{ marginBottom: 4 }}>{g}</div><KV items={rows} /></div>)}
+          {missing.length > 0 && <div data-testid="still-to-confirm"><div className="small medium" style={{ marginBottom: 4 }}>Still to confirm</div><ul className="small" style={{ margin: 0, paddingLeft: 18 }}>{missing.map((m) => <li key={m}>{m}</li>)}</ul></div>}
         </Section>
       )}
       <NextStep call={call} />

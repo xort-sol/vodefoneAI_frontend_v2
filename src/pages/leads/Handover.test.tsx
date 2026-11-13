@@ -34,6 +34,41 @@ describe('What we learned', () => {
   });
 });
 
+describe('Estimates and unconfirmed dates', () => {
+  it('contract with day and month but no year says the year is to confirm', () => {
+    const text = show({ discovery: { bb_contract: known({ month: 1, day: 25 }) } });
+    expect(text).toContain('25 Jan (year to confirm)');
+    expect(text).not.toContain('NaN');
+  });
+  it('spend ranges are estimates, exact figures are not', () => {
+    const text = show({ discovery: { mob_spend: known({ min: 500, max: null }), bb_spend: known({ min: 50, max: 75, vat: 'incl' }) } });
+    expect(text).toContain('€500+/month (estimate)');
+    expect(text).toContain('€50–75/month incl. VAT (estimate)');
+    cleanup();
+    expect(show({ discovery: { bb_spend: known({ exact: 60 }) } })).not.toContain('estimate');
+  });
+});
+
+describe('Still to confirm', () => {
+  const orla = { employees: known(5), premises: known(3), decision_maker: known(true), bb_issues: known(true), mob_network: known('Eir'), mob_connections: known(5),
+    mob_spend: known({ min: 500, max: null }), bb_contract: known({ month: 1, day: 25 }), mob_contract: known({ month: 1, day: 25 }), m365: known(false) };
+  it('lists what is missing or unconfirmed, and nothing already known', () => {
+    show({ discovery: orla });
+    const items = [...document.querySelectorAll('[data-testid="still-to-confirm"] li')].map((e) => e.textContent);
+    expect(items).toEqual(['Broadband provider', 'Broadband spend', 'Broadband contract end (year to confirm)', 'Mobile contract end (year to confirm)']);
+  });
+  it('is hidden when everything is confirmed, and for demo calls', () => {
+    const all = { ...orla, bb_provider: known('Eir'), bb_spend: known({ exact: 60 }), bb_contract: known({ date: '2027-03-01' }), mob_contract: known({ months: 6 }) };
+    expect(show({ discovery: all })).not.toContain('Still to confirm');
+    cleanup();
+    expect(show({ discovery: orla, simulated: true })).not.toContain('Still to confirm');
+  });
+  it('declined facts stay as "Declined to say" rows and are not listed again', () => {
+    show({ discovery: { ...orla, bb_provider: { status: 'declined', value: null } } });
+    expect(document.querySelector('[data-testid="still-to-confirm"]')?.textContent).not.toContain('Broadband provider');
+  });
+});
+
 describe('Next step', () => {
   it('callback shows time, reason and renewal date', () => {
     const text = show({ outcome: 'Callback requested', callbackTime: 'Tuesday at 3pm', followUp: { reason: 'renewal', contract_end: '2027-01-31' } });

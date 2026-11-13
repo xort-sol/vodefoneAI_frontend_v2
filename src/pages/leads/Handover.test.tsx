@@ -58,8 +58,16 @@ describe('Next step', () => {
   it('a simulated demo transfer shows no next step', () => expect(show({ outcome: 'Transferred to human', simulated: true })).toBe(''));
   it('a Live transfer with no follow-up still shows it', () => expect(show({ outcome: 'Transferred to human', simulated: false })).toContain('Transferred to a specialist'));
   it('transfer done', () => expect(show({ outcome: 'Transferred to human', followUp: { transfer: 'done' } })).toContain('Transferred to a specialist'));
-  it('transfer failed, then a callback', () =>
-    expect(show({ outcome: 'Callback requested', callbackTime: 'Friday 2pm', followUp: { reason: 'callback', transfer: 'failed' } })).toContain('Transfer attempted, then callback booked'));
+  it.each([
+    ['callback', { reason: 'callback' }, 'Callback'], ['field visit', { reason: 'field_visit', visit_address: '1 Main St', contact_name: 'Ann' }, 'Field visit'],
+    ['email', { reason: 'email', email: 'ann@cafe.ie', products: 'Mobile' }, 'Email'],
+  ])('a failed transfer shows "Transfer attempted" with a %s next step', (_, followUp, step) => {
+    const text = show({ outcome: 'Interested', callbackTime: 'Friday 2pm', followUp: { ...followUp, transfer: 'failed' } });
+    expect(text).toContain('Transfer attempted');
+    expect(text).toContain(step);
+  });
+  it('a failed transfer with no follow-up still shows it was attempted', () =>
+    expect(show({ outcome: 'Not interested', followUp: { transfer: 'failed' } })).toContain('Transfer attempted'));
 });
 
 describe('Score', () => {

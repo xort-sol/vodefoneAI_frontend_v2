@@ -359,6 +359,21 @@ describe('handover', () => {
     expect(canned.callback).toBeUndefined();
   });
 
+  it('header hides empty parts and an unknown plan', async () => {
+    await open({ customerType: 'Business', city: '', currentPlan: '', tenureMonths: 0 });
+    const text = document.body.textContent ?? '';
+    expect(text).toContain('Business · +353871234567');
+    expect(text).not.toMatch(/·\s*·/);
+    expect(text).not.toContain('Current plan');
+  });
+
+  it('the recommended next action joins sentences with punctuation', () => {
+    const next = (nextStep: string, q: string) =>
+      leadInsights(lead({ status: 'Warm' }), [call({ connected: true, nextStep, unanswered: [q] })]).nextAction;
+    expect(next('Ring on Tuesday', 'Is it 5G?')).toBe('Ring on Tuesday. Answer open question: “Is it 5G?”');
+    expect(next('Ring on Tuesday.', 'price for ten lines')).toBe('Ring on Tuesday. Answer open question: “price for ten lines”.');
+  });
+
   it('demo keeps the plain status list and writes no hold', async () => {
     h.mode = 'demo';
     function DemoDrawer() { const app = useApp(); return <HandoverDrawer lead={app.leads[0]} calls={[]} onClose={() => {}} actingRepId={app.team[0].id} />; }

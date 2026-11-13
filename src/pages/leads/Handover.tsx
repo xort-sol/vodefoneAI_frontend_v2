@@ -30,6 +30,7 @@ export interface Insights {
   calls: Call[]; latest?: Call; latestConnected?: Call; reason: string; requirements: string[]; objections: string[]; questions: string[]; unanswered: string[];
   nextAction: string; deadline: string | null; overdue: boolean; callback?: string;
 }
+const endSentence = (s: string) => (/[.?!]$/.test(s.trim()) ? s.trim() : `${s.trim()}.`); // the model's next step may lack a full stop
 export function leadInsights(lead: Lead, calls: Call[], product?: Product): Insights {
   const connected = calls.filter((c) => c.connected);
   const latest = calls[0]; const latestConnected = connected[0];
@@ -56,7 +57,8 @@ export function leadInsights(lead: Lead, calls: Call[], product?: Product): Insi
             : lead.status === 'Callback requested' ? 'Call back at the customer’s requested time and re-qualify.'
               : lead.status === 'Unreachable' ? 'Try SMS or email before the next call attempt.'
                 : 'Nurture: revisit in a future campaign in 90 days.');
-  if (unanswered[0] && lead.status !== 'Converted') nextAction += ` Answer open question: “${unanswered[0]}”.`;
+  const q = unanswered[0];
+  if (q && lead.status !== 'Converted') nextAction = `${endSentence(nextAction)} Answer open question: “${q}”${/[.?!]$/.test(q) ? '' : '.'}`;
   const deadline = lead.nextFollowUp ?? (lead.lastCallAt ? new Date(new Date(lead.lastCallAt).getTime() + (lead.status === 'Hot' ? 1 : 2) * DAY).toISOString() : null);
   const overdue = !!deadline && new Date(deadline) < NOW && !['Converted', 'Not interested', 'Do not call'].includes(lead.status);
   return { calls, latest, latestConnected, reason, requirements, objections, questions, unanswered, nextAction, deadline, overdue, callback: latestConnected?.callbackTime };
@@ -109,12 +111,13 @@ function NextStep({ call }: { call: Call }) {
     : f.reason === 'email' ? [['Email', f.email], ['Products', f.products]]
       : f.reason || call.callbackTime ? [['When', call.callbackTime], ['Reason', f.reason === 'renewal' ? 'Renewal' : 'Callback'], ['Contract ends', contractEnd(f.contract_end)]]
         : [];
-  if (!rows.length) return null;
-  const label = f.reason === 'field_visit' ? 'Field visit' : f.reason === 'email' ? 'Email' : f.transfer === 'failed' ? 'Transfer attempted, then callback booked' : 'Callback';
+  const failed = f.transfer === 'failed';
+  if (!rows.length && !failed) return null;
+  const label = f.reason === 'field_visit' ? 'Field visit' : f.reason === 'email' ? 'Email' : rows.length ? 'Callback' : null;
   const badge = f.reason === 'field_visit' ? 'Request — awaiting team confirmation' : f.reason === 'email' ? 'Not sent yet' : null;
   return (
     <Section icon={<ClipboardList size={12} />} title="Next step">
-      <div className="row-wrap small medium" style={{ marginBottom: 8 }}>{label}{badge && <Badge tone="amber">{badge}</Badge>}</div>
+      <div className="row-wrap small medium" style={{ marginBottom: 8 }}>{label}{failed && <Badge>Transfer attempted</Badge>}{badge && <Badge tone="amber">{badge}</Badge>}</div>
       <KV items={rows.filter(([, v]) => v).map(([k, v]) => [k, v])} />
     </Section>
   );
@@ -160,6 +163,8 @@ export function HandoverDrawer({ lead, calls, onClose, actingRepId, onContact, o
   const agent = call ? app.agentById.get(call.agentId) : undefined;
   const tx = call ? app.transcriptFor(call) : [];
   const rep = lead.assignedRepId ? app.memberById.get(lead.assignedRepId) : undefined;
+  // 'Unknown' is the screens' placeholder plan
+  const plan = [lead.currentPlan !== 'Unknown' && lead.currentPlan, lead.tenureMonths ? `${lead.tenureMonths} mo` : ''].filter(Boolean).join(' · ');
   const accepted = lead.tags.includes('Handover accepted');
   const canAssign = app.can('leads.assign'); const canEdit = app.can('leads.edit');
   const accepter = actingRepId ?? lead.assignedRepId ?? (app.me.role === 'Sales Representative' ? app.me.id : undefined);
@@ -230,7 +235,7 @@ export function HandoverDrawer({ lead, calls, onClose, actingRepId, onContact, o
           <Avatar name={lead.name} size="lg" />
           <div className="grow">
             <div className="row-wrap"><Link to={`/leads/${lead.id}`} className="strong" style={{ fontSize: 16 }}>{lead.name}</Link><StatusBadge status={lead.status} />{accepted && <Badge tone="green">Accepted</Badge>}</div>
-            <div className="small muted mt-4">{lead.customerType} · {lead.city} · <span className="mono">{lead.phone}</span></div>
+            <div className="small muted mt-4">{[lead.customerType, lead.city].filter(Boolean).map((p) => `${p} · `)}<span className="mono">{lead.phone}</span></div>
           </div>
           <div style={{ textAlign: 'right' }}><div className="label">Score</div><div className="mt-4"><ScoreBar value={lead.score} /></div></div>
         </div>
@@ -254,7 +259,8 @@ export function HandoverDrawer({ lead, calls, onClose, actingRepId, onContact, o
 
         <Section icon={<Target size={12} />} title="Customer & product">
           <KV items={[
-            ['Email', <span className="truncate" key="e">{lead.email}</span>], ['Current plan', `${lead.currentPlan} · ${lead.tenureMonths} mo`],
+            ['Email', <span className="truncate" key="e">{lead.email}</span>],
+            ...(plan ? [['Current plan', plan] as [string, string]] : []),
             ['Product interest', <span key="p">{product?.name} <span className="muted">· {product ? fmtEUR(product.monthlyPrice) : ''}/mo · {product?.contractMonths} mo</span></span>],
             ['Campaign', lead.campaignId ? <Link key="c" to={`/campaigns/${lead.campaignId}`}>{app.campaignById.get(lead.campaignId)?.name}</Link> : '—'],
             ['Sentiment', <StatusBadge key="s" status={lead.sentiment} dot={false} />], ['Status', canEdit ? <select key="st" className="select sm soft" style={{ width: 180, height: 28 }} value={lead.status} onChange={(e) => setStatus(e.target.value as LeadStatus)}>{LEAD_STATUSES.filter((s) => app.mode !== 'live' || s !== 'Queued').map((s) => <option key={s}>{s}</option>)}</select> : lead.status],

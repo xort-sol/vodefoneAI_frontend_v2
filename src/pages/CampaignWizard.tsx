@@ -10,11 +10,10 @@ import { DAY, NOW, startOfDay } from '../data/seed';
 import type { Campaign, CustomerType, Lead } from '../data/types';
 import { createCampaign, DayChips, TIMEZONES, VOICEMAIL_POLICIES, daysRange, getCampaignExtras, inCallingWindow, setCampaignExtras, toMin, type CampaignExtras, ModulePage } from './campaigns/shared';
 
-const STEPS = ['Campaign information', 'Lead selection', 'AI agent', 'Product & offer', 'Qualification', 'Schedule & retry', 'Review & launch'] as const;
+const STEPS = ['Campaign information', 'Lead selection', 'AI agent', 'Qualification', 'Schedule & retry', 'Review & launch'] as const;
 const OBJECTIVES = ['Renewal / recontract', 'New acquisition', 'Upsell / cross-sell', 'Retention / win-back', 'Appointment setting'];
 const CUSTOMER_TYPES: CustomerType[] = ['Consumer', 'SME', 'Business', 'Enterprise'];
 const SOURCES: Lead['source'][] = ['CRM export', 'Web form', 'Retail store', 'Contract renewal', 'Partner referral', 'CSV import'];
-const GENERIC_PITCH = ['Price & monthly saving', 'Network reliability', 'Loyalty reward'];
 const DEFAULT_QUESTIONS = ['When does your current contract end?', 'Roughly what do you pay per month today?', 'Are you the account holder / decision maker?'];
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -71,10 +70,7 @@ export default function CampaignWizard() {
     return { matched, assigned, compliance, reasons: [...reasons.entries()].sort((a, b) => b[1] - a[1]), eligible, selected };
   }, [app.leads, app.campaignById, app.eligibility, form.types, form.city, form.source, form.plan, form.minTenure, form.tags, form.excludeContacted, form.includeAssigned, form.limit]);
 
-  const product = app.productById.get(form.productId);
   const agent = app.agentById.get(form.agentId);
-  const offer = app.offers.find((o) => o.id === form.offerId);
-  const productOffers = app.offers.filter((o) => o.status === 'Active' && o.productIds.includes(form.productId));
   const hours = app.settings.callingHours;
   const outsideHours = form.days.filter((d) => !hours.days.includes(d)).length > 0 || toMin(form.start) < toMin(hours.start) || toMin(form.end) > toMin(hours.end);
   const today = startOfDay(NOW);
@@ -103,16 +99,11 @@ export default function CampaignWizard() {
       else if (agent && !['Live', 'Testing'].includes(agent.status)) e.agent = 'This agent cannot be assigned';
     }
     if (i === 3) {
-      if (!form.productId) e.product = 'Select a product';
-      else if (product && (!product.approved || product.availability === 'Retired')) e.product = 'Product is not approved for outbound selling';
-      if (!form.pitch.length) e.pitch = 'Choose at least one pitch emphasis';
-    }
-    if (i === 4) {
       if (form.warm >= form.hot) e.thresholds = 'Warm threshold must be lower than the hot threshold';
       if (form.hot > 100 || form.warm < 0) e.thresholds = 'Thresholds must be between 0 and 100';
       if (form.questions.some((q) => !q.trim())) e.questions = 'Remove or complete empty questions';
     }
-    if (i === 5) {
+    if (i === 4) {
       if (!form.days.length) e.days = 'Select at least one calling day';
       if (toMin(form.end) <= toMin(form.start)) e.end = 'End time must be after start time';
       if (form.concurrency < 1) e.concurrency = 'At least 1';
@@ -127,12 +118,12 @@ export default function CampaignWizard() {
   };
   const valid = (i: number) => Object.keys(errorsFor(i)).length === 0;
   const err = (k: string) => (showErr.has(step) ? errorsFor(step)[k] : undefined);
-  const firstInvalid = STEPS.findIndex((_, i) => i < 6 && !valid(i));
+  const firstInvalid = STEPS.findIndex((_, i) => i < STEPS.length - 1 && !valid(i));
   const reachable = (i: number) => firstInvalid === -1 || i <= firstInvalid;
 
   const next = () => {
     if (!valid(step)) { setShowErr((s) => new Set(s).add(step)); return; }
-    setStep((s) => Math.min(6, s + 1)); window.scrollTo({ top: 0 });
+    setStep((s) => Math.min(STEPS.length - 1, s + 1)); window.scrollTo({ top: 0 });
   };
   const back = () => { setStep((s) => Math.max(0, s - 1)); window.scrollTo({ top: 0 }); };
   const goto = (i: number) => {
@@ -164,8 +155,6 @@ export default function CampaignWizard() {
   const checks: Check[] = [
     { label: 'Marketing consent verified', detail: `${fmtInt(est.n)} selected leads hold valid voice consent`, state: est.n > 0 ? 'pass' : 'fail' },
     { label: 'Suppression & National Directory Database screening', detail: match.compliance ? `${fmtInt(match.compliance)} leads excluded automatically (DNC, consent, attempt limits)` : 'No suppressed numbers in selection', state: 'pass' },
-    { label: 'Product approved for outbound', detail: product ? `${product.name} · reviewed ${fmtDate(product.lastReviewed)}` : 'No product selected', state: product?.approved ? 'pass' : 'fail' },
-    { label: 'Offer validity', detail: offer ? (new Date(offer.endDate) < fromYmd(form.endDate || ymd(today)) ? `${offer.name} ends ${fmtDate(offer.endDate)} — before campaign end` : `${offer.name} valid until ${fmtDate(offer.endDate)}`) : 'No promotional offer — standard pricing only', state: offer && new Date(offer.endDate) < fromYmd(form.endDate || ymd(today)) ? 'warn' : 'pass' },
     { label: 'AI agent readiness', detail: agent ? `${agent.name} ${agent.version} · ${agent.status}${agent.status === 'Testing' ? ' — supervised test calls only' : ''}` : 'No agent selected', state: !agent ? 'fail' : agent.status === 'Live' ? 'pass' : agent.status === 'Testing' ? 'warn' : 'fail' },
     { label: app.mode === 'live' ? 'AI disclosure' : 'AI disclosure & recording notice', detail: !app.settings.disclosure ? 'No disclosure configured' : app.mode === 'live' ? 'Disclosure read at call start' : `Recording ${app.settings.recordCalls ? 'enabled' : 'disabled'} · disclosure read at call start`, state: app.settings.disclosure ? 'pass' : 'fail' },
     { label: 'Permitted calling hours', detail: outsideHours ? `Window extends beyond policy (${hours.days.join(', ')} ${hours.start}–${hours.end}); out-of-policy slots are blocked` : `${daysRange(form.days)} ${form.start}–${form.end} within policy`, state: outsideHours ? 'warn' : 'pass' },
@@ -338,46 +327,6 @@ export default function CampaignWizard() {
       </div>
     </div>,
 
-    // 4 — Product & offer
-    <div className="col gap-16" key="s4">
-      {err('product') && <div className="banner warn"><AlertTriangle />{err('product')}</div>}
-      <div className="grid g-2" style={{ gap: 12 }}>
-        {app.products.map((p) => {
-          const ok = p.approved && p.availability !== 'Retired';
-          const on = form.productId === p.id;
-          return (
-            <button key={p.id} type="button" className={`option-card ${on ? 'on' : ''}`} disabled={!ok}
-              onClick={() => setForm((f) => ({ ...f, productId: p.id, offerId: '', pitch: p.benefits.slice(0, 2) }))}
-              style={!ok ? { opacity: 0.55, cursor: 'not-allowed', background: '#fafafa' } : undefined}>
-              <div className="row between"><span className="cell-primary">{p.name}</span><span className="mono small">{fmtEUR(p.monthlyPrice)}/mo</span></div>
-              <div className="row mt-4"><span className="cell-sub">{p.category} · {p.contractMonths}-month · {p.data}{p.speed ? ` · ${p.speed}` : ''}</span>{p.availability !== 'Available' && <StatusBadge status={p.availability} dot={false} />}</div>
-              {!ok && <div className="row xs mt-8" style={{ color: 'var(--red)' }}><Lock size={12} />Not approved by compliance — last reviewed {fmtDate(p.lastReviewed)}</div>}
-            </button>
-          );
-        })}
-      </div>
-      {product && (
-        <div className="grid g-2">
-          <Field label="Promotional offer" hint={productOffers.length ? 'Only active offers for this product are listed.' : 'No active offers for this product.'}>
-            <select className="select" value={form.offerId} onChange={(e) => set('offerId', e.target.value)}>
-              <option value="">No offer — standard pricing</option>
-              {productOffers.map((o) => <option key={o.id} value={o.id}>{o.name} ({o.code})</option>)}
-            </select>
-            {offer && <div className="inset-box small mt-4"><div className="medium" style={{ color: 'var(--ink)' }}>{offer.discount}</div><div className="subtle mt-4">{offer.description}</div><div className="xs muted mt-4 mono">Valid {fmtDate(offer.startDate)} – {fmtDate(offer.endDate)}</div></div>}
-          </Field>
-          <div className="field">
-            <span className="field-label">Pitch emphasis</span>
-            <div className="col" style={{ gap: 6 }}>
-              {[...product.benefits, ...GENERIC_PITCH].map((b) => (
-                <label key={b} className="row small" style={{ cursor: 'pointer' }}><input type="checkbox" className="checkbox" checked={form.pitch.includes(b)} onChange={() => set('pitch', toggleIn(form.pitch, b))} />{b}</label>
-              ))}
-            </div>
-            {err('pitch') && <span className="field-error">{err('pitch')}</span>}
-          </div>
-        </div>
-      )}
-    </div>,
-
     // 5 — Qualification
     <div className="col gap-16" key="s5">
       <Field label={<span className="row between" style={{ width: '100%' }}>Minimum qualification score<span className="mono">{form.minScore}/100</span></span>} hint="Leads below this score are logged as not qualified.">
@@ -448,8 +397,8 @@ export default function CampaignWizard() {
       <div className="grid g-2">
         <ReviewCard title="Campaign" onEdit={() => setStep(0)} items={[['Name', form.name || '—'], ['Objective', form.objective || '—'], ['Owner', form.owner], ['Dates', form.startDate && form.endDate ? `${fmtDate(fromYmd(form.startDate))} – ${fmtDate(fromYmd(form.endDate))}` : '—']]} />
         <ReviewCard title="Audience" onEdit={() => setStep(1)} items={[['Selected leads', `${fmtInt(est.n)} of ${fmtInt(match.matched.length)} matching`], ['Filters', describeFilters(form)], ['Excluded', `${fmtInt(match.compliance)} compliance · ${fmtInt(match.assigned)} assigned elsewhere`]]} />
-        <ReviewCard title="AI agent & product" onEdit={() => setStep(3)} items={[['Agent', agent ? <span className="row gap-4"><Avatar initials={agent.initials} color={agent.color} size="sm" agent />{agent.name} · <StatusBadge status={agent.status} /></span> : '—'], ['Product', product ? `${product.name} · ${fmtEUR(product.monthlyPrice)}/mo` : '—'], ['Offer', offer ? `${offer.name} (${offer.code})` : 'None'], ['Pitch', form.pitch.join(', ') || '—']]} />
-        <ReviewCard title="Qualification & schedule" onEdit={() => setStep(5)} items={[['Min. score', `${form.minScore} · hot ≥ ${form.hot} · warm ≥ ${form.warm}`], ['Requires', [form.requireBudget && 'budget', form.requireDecisionMaker && 'decision maker', form.requireTimeline && 'timeline'].filter(Boolean).join(', ') || 'No hard requirements'], ['Window', `${daysRange(form.days)} · ${form.start}–${form.end} (${form.timezone})`], ['Pacing', `${form.concurrency} concurrent · ${fmtInt(form.dailyCap)}/day · ${form.maxAttempts} attempts / ${form.intervalHours}h`], ['Voicemail', form.voicemail]]} />
+        <ReviewCard title="AI agent" onEdit={() => setStep(2)} items={[['Agent', agent ? <span className="row gap-4"><Avatar initials={agent.initials} color={agent.color} size="sm" agent />{agent.name} · <StatusBadge status={agent.status} /></span> : '—']]} />
+        <ReviewCard title="Qualification & schedule" onEdit={() => setStep(4)} items={[['Min. score', `${form.minScore} · hot ≥ ${form.hot} · warm ≥ ${form.warm}`], ['Requires', [form.requireBudget && 'budget', form.requireDecisionMaker && 'decision maker', form.requireTimeline && 'timeline'].filter(Boolean).join(', ') || 'No hard requirements'], ['Window', `${daysRange(form.days)} · ${form.start}–${form.end} (${form.timezone})`], ['Pacing', `${form.concurrency} concurrent · ${fmtInt(form.dailyCap)}/day · ${form.maxAttempts} attempts / ${form.intervalHours}h`], ['Voicemail', form.voicemail]]} />
       </div>
       <Card title="Compliance checks" sub="Automatically evaluated before any call is placed">
         <div className="col" style={{ gap: 10 }}>
@@ -482,7 +431,7 @@ export default function CampaignWizard() {
       `}</style>
       <PageHeader
         title={source ? 'Duplicate campaign' : 'New campaign'}
-        desc={`Configure the audience, AI agent, offer, qualification rules and calling schedule.${app.mode === 'live' ? '' : ' All calling is simulated.'}`}
+        desc={`Configure the audience, AI agent, qualification rules and calling schedule.${app.mode === 'live' ? '' : ' All calling is simulated.'}`}
         eyebrow={<><Button size="xs" variant="ghost" icon={<ArrowLeft size={12} />} onClick={() => nav('/campaigns')}>Campaigns</Button><SimBadge /></>}
         actions={<>
           <Button size="sm" variant="ghost" onClick={() => nav('/campaigns')}>Cancel</Button>
@@ -526,13 +475,13 @@ export default function CampaignWizard() {
             </div>
           </div>
           {stepBody[step]}
-          {stepErrors.length > 0 && step !== 6 && (
+          {stepErrors.length > 0 && step !== STEPS.length - 1 && (
             <div className="banner warn mt-16"><AlertTriangle /><div>Fix {stepErrors.length === 1 ? 'this issue' : `${stepErrors.length} issues`} to continue: {stepErrors.join(' · ')}</div></div>
           )}
           <div className="divider" />
           <div className="row between" style={{ flexWrap: 'wrap' }}>
             <Button icon={<ArrowLeft />} onClick={back} disabled={step === 0}>Back</Button>
-            {step < 6 ? (
+            {step < STEPS.length - 1 ? (
               <Button variant="primary" iconRight={<ArrowRight />} onClick={next}>Next: {STEPS[step + 1]}</Button>
             ) : (
               <div className="row-wrap">
@@ -552,7 +501,6 @@ const STEP_DESC = [
   'Name the campaign, set its purpose, owner and active dates.',
   'Target leads from the CRM. Compliance rules (consent, suppression, attempt limits) are applied automatically.',
   'Choose the voice agent that will handle conversations. Only Live or Testing agents can be assigned.',
-  'Select an approved product, an optional active promotion and what the agent should emphasise.',
   'Define when a conversation counts as qualified and how leads are graded.',
   'Control when and how often the AI calls, and how retries and voicemail are handled.',
   'Check the configuration, estimated cost and compliance checks before launching.',

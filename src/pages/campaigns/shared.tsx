@@ -174,7 +174,7 @@ export function campaignHistory(c: Campaign, app: ReturnType<typeof useApp>) {
   type Ev = { at: string; title: string; actor: string; detail?: string; tone: 'blue' | 'green' | 'amber' | 'red' | 'neutral' };
   const ev: Ev[] = [];
   const start = new Date(c.startDate);
-  ev.push({ at: new Date(start.getTime() - 3 * 86400000).toISOString(), title: 'Campaign created', actor: c.createdBy, detail: `${c.segment} · ${app.productById.get(c.productId)?.name ?? ''}`, tone: 'neutral' });
+  ev.push({ at: new Date(start.getTime() - 3 * 86400000).toISOString(), title: 'Campaign created', actor: c.createdBy, detail: c.segment, tone: 'neutral' });
   if (!['Draft'].includes(c.status)) ev.push({ at: new Date(start.getTime() - 2 * 86400000).toISOString(), title: 'Lead list attached', actor: c.createdBy, detail: `${c.totalLeads.toLocaleString('en-GB')} leads after compliance screening`, tone: 'neutral' });
   if (c.status === 'Scheduled') ev.push({ at: new Date(start.getTime() - 86400000).toISOString(), title: `Scheduled to launch ${fmtDate(c.startDate)}`, actor: c.createdBy, tone: 'blue' });
   if (!['Draft', 'Scheduled'].includes(c.status) && start <= new Date()) ev.push({ at: c.startDate, title: 'Campaign launched', actor: c.createdBy, detail: `Agent ${app.agentById.get(c.agentId)?.name ?? ''} · ${c.concurrency} concurrent · cap ${c.dailyCap}/day`, tone: 'green' });

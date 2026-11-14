@@ -208,9 +208,8 @@ describe('final review fixes', () => {
     fireEvent.change(objective, { target: { value: objective.options[1].value } });
     next(); next();
     fireEvent.click(document.querySelector('.option-card:not([disabled])')!);
-    next();
-    fireEvent.click(document.querySelector('.option-card:not([disabled])')!);
     next(); next();
+    expect(document.body.textContent).not.toMatch(/Product & offer|Promotional offer/);
     const interval = screen.getByLabelText(/Retry interval/) as HTMLInputElement;
     fireEvent.change(interval, { target: { value: '1.5' } });
     next();

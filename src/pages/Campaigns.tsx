@@ -19,7 +19,6 @@ export default function Campaigns() {
   const tab = (sp.get('status') as Tab) || 'all';
   const setTab = (t: Tab) => { const n = new URLSearchParams(sp); if (t === 'all') n.delete('status'); else n.set('status', t); setSp(n, { replace: true }); };
   const [q, setQ] = useState('');
-  const [product, setProduct] = useState('');
   const [view, setView] = useState<'table' | 'cards'>(() => { try { return (localStorage.getItem('vf-camp-view') as 'table' | 'cards') || 'table'; } catch { return 'table'; } });
   const changeView = (v: 'table' | 'cards') => { setView(v); try { localStorage.setItem('vf-camp-view', v); } catch { /* ignore */ } };
   const [editing, setEditing] = useState<Campaign | null>(null);
@@ -31,9 +30,9 @@ export default function Campaigns() {
   const rows = useMemo(() => {
     const s = q.trim().toLowerCase();
     return app.campaigns.filter((c) =>
-      (tab === 'all' || c.status === tab) && (!product || c.productId === product) &&
+      (tab === 'all' || c.status === tab) &&
       (!s || c.name.toLowerCase().includes(s) || c.id.toLowerCase().includes(s) || c.segment.toLowerCase().includes(s)));
-  }, [app.campaigns, tab, product, q]);
+  }, [app.campaigns, tab, q]);
 
   const live = app.campaigns.filter((c) => c.status !== 'Draft');
   const summary = {
@@ -46,7 +45,7 @@ export default function Campaigns() {
   const exportList = (fmt: string) => {
     if (fmt !== 'CSV') { app.toast(`${fmt} export queued`, 'You will be notified when the file is ready.', 'info'); return; }
     downloadFile('campaigns.csv', toCSV(rows.map((c) => ({
-      id: c.id, name: c.name, status: c.status, product: app.productById.get(c.productId)?.name ?? '', agent: app.agentById.get(c.agentId)?.name ?? '',
+      id: c.id, name: c.name, status: c.status, agent: app.agentById.get(c.agentId)?.name ?? '',
       total_leads: c.totalLeads, attempted: c.attempted, connected: c.connected, warm: c.warm, qualified: c.qualified, minutes: c.minutes,
       est_spend_gbp: spendOf(c).toFixed(2), start: c.startDate.slice(0, 10), end: c.endDate.slice(0, 10),
     }))));
@@ -80,7 +79,6 @@ export default function Campaigns() {
         <div className="mono muted">{c.id}</div>
       </div>
     ) },
-    { key: 'product', header: 'Product', sort: (c) => app.productById.get(c.productId)?.name ?? '', render: (c) => <span className="small" style={{ whiteSpace: 'normal', display: 'inline-block', maxWidth: 110 }}>{app.productById.get(c.productId)?.name}</span> },
     { key: 'total', header: 'Leads', align: 'right', sort: (c) => c.totalLeads, render: (c) => fmtInt(c.totalLeads) },
     { key: 'attempted', header: 'Attempted', sort: (c) => pctOf(c.attempted, c.totalLeads), render: (c) => (
       <div title={`${fmtPct(pctOf(c.attempted, c.totalLeads), 0)} of leads attempted`} style={{ minWidth: 72 }}><div className="row between"><span className="mono small tnum">{fmtInt(c.attempted)}</span><span className="xs muted">{fmtPct(pctOf(c.attempted, c.totalLeads), 0)}</span></div><div className="mt-4"><Progress value={pctOf(c.attempted, c.totalLeads)} /></div></div>
@@ -101,7 +99,7 @@ export default function Campaigns() {
     <ModulePage>
       <PageHeader
         title="Campaigns"
-        desc="Plan, launch and monitor outbound AI calling campaigns — lead targeting, agent, offer, schedule and spend."
+        desc="Plan, launch and monitor outbound AI calling campaigns — lead targeting, agent, schedule and spend."
         eyebrow={<><Badge tone="green" dot live>{app.live.length} live calls</Badge><SimBadge /></>}
         actions={<>
           <ExportMenu onExport={exportList} />
@@ -122,23 +120,22 @@ export default function Campaigns() {
       <Card flush>
         <div className="table-toolbar">
           <SearchInput value={q} onChange={setQ} placeholder="Search name, ID or segment…" />
-          <FilterSelect label="Product" value={product} onChange={setProduct} options={app.products.map((p) => ({ value: p.id, label: p.name }))} />
           <span className="small muted" style={{ marginLeft: 'auto' }}>{rows.length} of {app.campaigns.length}</span>
           <Segmented value={view} onChange={changeView} options={[{ value: 'table', label: <span className="row gap-4"><List size={13} />Table</span> }, { value: 'cards', label: <span className="row gap-4"><LayoutGrid size={13} />Cards</span> }]} />
         </div>
         {view === 'table' ? (
           <DataTable rows={rows} columns={columns} rowKey={(c) => c.id} onRowClick={(c) => nav(`/campaigns/${c.id}`)} initialSort={{ key: 'dates', dir: 'desc' }} pageSize={10} dense
-            empty={<EmptyState icon={<Megaphone size={18} />} title="No campaigns match" desc="Try another status tab, product or search term." action={acts.canManage ? <Button size="sm" icon={<Plus />} onClick={() => nav('/campaigns/new')}>New campaign</Button> : undefined} />} />
+            empty={<EmptyState icon={<Megaphone size={18} />} title="No campaigns match" desc="Try another status tab or search term." action={acts.canManage ? <Button size="sm" icon={<Plus />} onClick={() => nav('/campaigns/new')}>New campaign</Button> : undefined} />} />
         ) : (
           <div style={{ padding: 16 }}>
-            {!rows.length && <EmptyState icon={<Megaphone size={18} />} title="No campaigns match" desc="Try another status tab, product or search term." />}
+            {!rows.length && <EmptyState icon={<Megaphone size={18} />} title="No campaigns match" desc="Try another status tab or search term." />}
             <div className="grid g-3">
               {rows.map((c) => {
                 const agent = app.agentById.get(c.agentId); const lv = liveBy.get(c.id) ?? 0;
                 return (
                   <Card key={c.id} onClick={() => nav(`/campaigns/${c.id}`)}>
                     <div className="row between" style={{ alignItems: 'flex-start' }}>
-                      <div className="grow"><div className="cell-primary truncate">{c.name}</div><div className="mono muted">{c.id} · {app.productById.get(c.productId)?.name}</div></div>
+                      <div className="grow"><div className="cell-primary truncate">{c.name}</div><div className="mono muted">{c.id}</div></div>
                       {actionMenu(c)}
                     </div>
                     <div className="row mt-12"><StatusBadge status={c.status} />{lv > 0 && <Badge tone="green" dot live>{lv} live</Badge>}<span className="xs muted" style={{ marginLeft: 'auto' }}>{fmtDate(c.startDate)} – {fmtDateShort(c.endDate)}</span></div>

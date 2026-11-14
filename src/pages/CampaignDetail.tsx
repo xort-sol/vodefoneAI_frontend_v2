@@ -54,8 +54,6 @@ export default function CampaignDetail() {
   }
 
   const agent = app.agentById.get(c.agentId);
-  const product = app.productById.get(c.productId);
-  const offer = c.offerId ? app.offers.find((o) => o.id === c.offerId) : undefined;
   const extras = getCampaignExtras(c.id);
   const spend = spendOf(c);
   const callCost = calls.reduce((s, x) => s + x.cost, 0);
@@ -295,15 +293,6 @@ export default function CampaignDetail() {
                 <MiniKV l="Total calls" v={fmtInt(agent.totalCalls)} /><MiniKV l="Qual. rate" v={fmtPct(agent.qualificationRate)} /><MiniKV l="Avg duration" v={fmtDur(agent.avgDuration)} /><MiniKV l="Escalation" v={fmtPct(agent.escalationRate)} />
               </div>
             </>) : <div className="small muted">Agent not found.</div>}
-          </Card>
-          <Card title="Product & offer" actions={<Button size="xs" variant="ghost" iconRight={<ArrowRight size={12} />} onClick={() => nav('/products')}>Catalogue</Button>}>
-            {product && <KV items={[
-              ['Product', <span className="medium">{product.name}</span>], ['Price', `${fmtEUR(product.monthlyPrice)}/mo · ${product.contractMonths} months${product.upfront ? ` · ${fmtEUR(product.upfront)} upfront` : ''}`],
-              ['Approval', product.approved ? <Badge tone="green" dot>Approved</Badge> : <Badge tone="red" dot>Not approved</Badge>],
-              ['Offer', offer ? <span>{offer.name} <span className="mono muted">{offer.code}</span> <StatusBadge status={offer.status} /></span> : 'Standard pricing'],
-              ...(offer ? [['Discount', offer.discount] as [ReactNode, ReactNode]] : []),
-              ['Pitch emphasis', extras?.pitch.length ? extras.pitch.join(', ') : product.benefits.slice(0, 2).join(', ')],
-            ]} />}
           </Card>
           <Card title="Calling schedule" actions={acts.canManage && !['Completed', 'Stopped'].includes(c.status) ? <Button size="xs" variant="ghost" icon={<Pencil size={12} />} onClick={() => setEditOpen(true)}>Edit</Button> : undefined}>
             <KV items={[

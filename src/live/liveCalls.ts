@@ -16,7 +16,7 @@ async function callApi<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${base}${path}`, {
     ...init,
     signal: AbortSignal.timeout(15000), // a hung request must not stop the polling loop for good
-    headers: { Authorization: `Bearer ${data.session.access_token}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${data.session.access_token}`, 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' }, // else ngrok's free tunnel answers with its HTML warning page
   });
   if (!res.ok) throw new Error(`${path} returned ${res.status}`);
   return res.json();
